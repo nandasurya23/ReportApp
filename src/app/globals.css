@@ -1,0 +1,247 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --brand-50: #ecfeff;
+  --brand-100: #cffafe;
+  --brand-500: #06b6d4;
+  --brand-600: #0891b2;
+  --ink-50: #f8fafc;
+  --ink-100: #f1f5f9;
+  --ink-200: #e2e8f0;
+  --ink-300: #cbd5e1;
+  --ink-500: #64748b;
+  --ink-700: #334155;
+  --ink-900: #0f172a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+}
+
+.surface-card {
+  border: 1px solid #dbe4ee;
+  background: #ffffff;
+  border-radius: 1rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.field-label {
+  margin-bottom: 0.3rem;
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-700);
+}
+
+.input-field {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ink-300);
+  background: white;
+  padding: 0.55rem 0.75rem;
+  color: var(--ink-900);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input-field:focus {
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(207, 250, 254, 0.9);
+}
+
+.input-leading-icon {
+  pointer-events: none;
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.input-with-icon {
+  padding-left: 2.4rem !important;
+}
+
+.input-with-icon::placeholder {
+  color: #94a3b8;
+}
+
+.btn {
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: transform 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn-primary {
+  background: var(--ink-900);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1e293b;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 9mm;
+  }
+
+  html,
+  body {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .no-print-content {
+    display: none !important;
+  }
+
+  .print-area {
+    border: 0 !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .print-area .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .report-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    border: 1px solid #cbd5e1 !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  .report-table col {
+    width: auto !important;
+  }
+
+  .report-table thead tr {
+    position: static !important;
+  }
+
+  .report-table th,
+  .report-table td {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    font-size: 9px !important;
+    padding: 5px 6px !important;
+    line-height: 1.25 !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .report-table col:last-child {
+    display: none !important;
+  }
+
+  .report-table thead th:last-child,
+  .report-table tbody td:last-child,
+  .report-table tfoot td:last-child {
+    display: none !important;
+  }
+
+  .report-table tfoot p:first-child {
+    font-size: 8px !important;
+  }
+
+  .report-table tfoot p:last-child {
+    font-size: 12px !important;
+  }
+}
+
+.report-datepicker-popper {
+  z-index: 40;
+}
+
+.report-datepicker-calendar {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14) !important;
+  font-family: var(--font-geist-sans), "Segoe UI", sans-serif !important;
+}
+
+.react-datepicker__header {
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header {
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__day-name,
+.react-datepicker__day {
+  color: #334155 !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  border-radius: 8px !important;
+}
+
+.react-datepicker__day:hover {
+  background: #e2e8f0 !important;
+  border-radius: 8px !important;
+}
+
+@media (max-width: 640px) {
+  .report-datepicker-popper {
+    inset: auto auto auto 0 !important;
+    transform: none !important;
+  }
+
+  .report-datepicker-calendar {
+    width: min(92vw, 320px) !important;
+  }
+
+  .react-datepicker {
+    width: 100%;
+  }
+}
