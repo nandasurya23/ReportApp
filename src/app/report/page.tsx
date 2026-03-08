@@ -414,7 +414,6 @@ export default function ReportPage() {
       type: "text/csv;charset=utf-8;",
     });
     downloadBlob(blob, `laundry-report-${filterYear}-${filterMonth}.csv`);
-    toast.success("File CSV berhasil diunduh.");
   };
 
   const onDownloadXLSX = async () => {
@@ -454,16 +453,12 @@ export default function ReportPage() {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       downloadBlob(blob, `laundry-report-${filterYear}-${filterMonth}.xlsx`);
-      toast.success("File XLSX berhasil diunduh.");
-    } catch {
-      toast.error("Gagal membuat file XLSX.");
     } finally {
       setIsExportingXlsx(false);
     }
   };
 
   const onPrint = () => {
-    toast.info("Membuka preview print...");
     window.print();
   };
 
@@ -498,9 +493,6 @@ export default function ReportPage() {
       }
 
       pdf.save(`laundry-report-${filterYear}-${filterMonth}.pdf`);
-      toast.success("PDF berhasil disimpan.");
-    } catch {
-      toast.error("Gagal menyimpan PDF.");
     } finally {
       setIsSavingPdf(false);
     }
