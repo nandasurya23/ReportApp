@@ -19,6 +19,7 @@ interface EditDraft {
 
 interface TransactionsTableProps {
   filteredTransactions: LaundryTransaction[];
+  dailySubtotalByDate: Map<string, number>;
   monthlyTotal: number;
   editDraft: EditDraft | null;
   setEditDraft: React.Dispatch<React.SetStateAction<EditDraft | null>>;
@@ -31,6 +32,7 @@ interface TransactionsTableProps {
 
 export function TransactionsTable({
   filteredTransactions,
+  dailySubtotalByDate,
   monthlyTotal,
   editDraft,
   setEditDraft,
@@ -41,13 +43,14 @@ export function TransactionsTable({
   formatPriceInput,
 }: TransactionsTableProps) {
   return (
-    <table className="report-table min-w-[980px] border-separate border-spacing-0 overflow-hidden rounded-xl border border-slate-200 bg-white text-[13px] text-slate-700">
+    <table className="report-table min-w-[1080px] border-separate border-spacing-0 overflow-hidden rounded-xl border border-slate-200 bg-white text-[13px] text-slate-700">
       <colgroup>
         <col className="w-[70px]" />
         <col className="w-[180px]" />
         <col className="w-[110px]" />
         <col className="w-[90px]" />
         <col className="w-[140px]" />
+        <col className="w-[170px]" />
         <col className="w-[170px]" />
         <col className="w-auto" />
         <col className="w-[126px]" />
@@ -65,6 +68,9 @@ export function TransactionsTable({
           <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-right">Harga</th>
           <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-right">
             Harga Total Harian
+          </th>
+          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-right">
+            Total Keseluruhan
           </th>
           <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
             Keterangan
@@ -179,6 +185,9 @@ export function TransactionsTable({
                 <td className="border-b border-slate-200 px-3 py-2.5 text-right align-top font-semibold text-slate-900">
                   {formatIDR(rowTotal)}
                 </td>
+                <td className="border-b border-slate-200 px-3 py-2.5 text-right align-top">
+                  {formatIDR(dailySubtotalByDate.get(transaction.date) ?? 0)}
+                </td>
                 <td className="border-b border-slate-200 px-3 py-2.5 align-top">
                   {isEditing ? (
                     <input
@@ -257,7 +266,7 @@ export function TransactionsTable({
       </tbody>
       <tfoot>
         <tr className="bg-slate-50">
-          <td colSpan={6} className="px-3 py-3 text-right align-bottom">
+          <td colSpan={7} className="px-3 py-3 text-right align-bottom">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               Total Bulanan
             </p>
