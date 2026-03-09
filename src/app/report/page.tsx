@@ -95,6 +95,14 @@ function parsePriceInput(raw: string): number {
   return Number(digits);
 }
 
+function parseQuantityInput(raw: string): number {
+  const normalized = raw.replace(",", ".").trim();
+  if (!normalized) {
+    return 0;
+  }
+  return Number(normalized);
+}
+
 export default function ReportPage() {
   const router = useRouter();
   const reportRef = useRef<HTMLDivElement>(null);
@@ -222,6 +230,13 @@ export default function ReportPage() {
     if (input.quantityKg <= 0) {
       return "Jumlah laundry harus lebih dari 0.";
     }
+    if (!Number.isFinite(input.quantityKg)) {
+      return "Satuan tidak valid.";
+    }
+    const halfStep = input.quantityKg * 2;
+    if (!Number.isInteger(halfStep)) {
+      return "Satuan hanya boleh kelipatan 0.5 KG.";
+    }
     if (input.pricePerKg < 0) {
       return "Harga per KG tidak boleh negatif.";
     }
@@ -233,7 +248,7 @@ export default function ReportPage() {
 
     const keterangan = reportKeterangan.trim();
     const normalizedRoomNumber = formRoomNumber.trim().toLowerCase();
-    const quantityKg = Number(formQuantityKg);
+    const quantityKg = parseQuantityInput(formQuantityKg);
     const pricePerKg = parsePriceInput(formPriceInput);
     const message = validateInput({
       date: formDate,
@@ -309,7 +324,7 @@ export default function ReportPage() {
       return;
     }
 
-    const quantityKg = Number(editDraft.quantityKg);
+    const quantityKg = parseQuantityInput(editDraft.quantityKg);
     const pricePerKg = parsePriceInput(editDraft.priceInput);
     const message = validateInput({
       date: editDraft.date,
@@ -709,21 +724,22 @@ export default function ReportPage() {
                     <FiPackage className="input-leading-icon" />
                     <input
                       id="qty"
-                      type="number"
-                      min={1}
+                      type="text"
+                      inputMode="decimal"
                       value={formQuantityKg}
                       onChange={(event) => {
-                        const nextValue = event.target.value;
+                        const nextValue = event.target.value.replace(",", ".");
                         if (nextValue === "") {
                           setFormQuantityKg("");
                           return;
                         }
-                        if (!/^\d+$/.test(nextValue)) {
+                        if (!/^\d*(\.\d?)?$/.test(nextValue)) {
                           return;
                         }
                         setFormQuantityKg(nextValue);
                       }}
                       className="input-field input-with-icon"
+                      placeholder="Contoh: 1 atau 1.5"
                     />
                   </div>
                 </div>

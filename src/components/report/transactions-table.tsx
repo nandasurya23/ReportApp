@@ -133,13 +133,22 @@ export function TransactionsTable({
                   {isEditing ? (
                     <input
                       type="text"
+                      inputMode="decimal"
                       value={editDraft.quantityKg}
                       onChange={(event) =>
-                        setEditDraft((prev) =>
-                          prev ? { ...prev, quantityKg: event.target.value } : prev,
-                        )
+                        setEditDraft((prev) => {
+                          if (!prev) {
+                            return prev;
+                          }
+                          const nextValue = event.target.value.replace(",", ".");
+                          if (nextValue !== "" && !/^\d*(\.\d?)?$/.test(nextValue)) {
+                            return prev;
+                          }
+                          return { ...prev, quantityKg: nextValue };
+                        })
                       }
                       className="input-field w-24 px-2 py-1"
+                      placeholder="1 / 1.5"
                     />
                   ) : (
                     transaction.quantityKg
