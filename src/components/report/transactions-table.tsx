@@ -20,6 +20,7 @@ interface EditDraft {
 interface TransactionsTableProps {
   filteredTransactions: LaundryTransaction[];
   dailySubtotalByDate: Map<string, number>;
+  noteCountByDate: Map<string, number>;
   monthlyTotal: number;
   editDraft: EditDraft | null;
   setEditDraft: React.Dispatch<React.SetStateAction<EditDraft | null>>;
@@ -33,6 +34,7 @@ interface TransactionsTableProps {
 export function TransactionsTable({
   filteredTransactions,
   dailySubtotalByDate,
+  noteCountByDate,
   monthlyTotal,
   editDraft,
   setEditDraft,
@@ -43,10 +45,11 @@ export function TransactionsTable({
   formatPriceInput,
 }: TransactionsTableProps) {
   return (
-    <table className="report-table min-w-[1080px] border-separate border-spacing-0 overflow-hidden rounded-xl border border-slate-200 bg-white text-[13px] text-slate-700">
+    <table className="report-table min-w-[1160px] border-separate border-spacing-0 overflow-hidden rounded-xl border border-slate-200 bg-white text-[13px] text-slate-700">
       <colgroup>
         <col className="w-[70px]" />
         <col className="w-[180px]" />
+        <col className="w-[100px]" />
         <col className="w-[110px]" />
         <col className="w-[90px]" />
         <col className="w-[140px]" />
@@ -62,6 +65,9 @@ export function TransactionsTable({
           </th>
           <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
             Tanggal
+          </th>
+          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-right">
+            Jumlah Nota
           </th>
           <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">No Kamar</th>
           <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-right">Satuan</th>
@@ -118,6 +124,9 @@ export function TransactionsTable({
                   ) : (
                     formatISODateToLongID(transaction.date)
                   )}
+                </td>
+                <td className="border-b border-slate-200 px-3 py-2.5 text-right align-top">
+                  {noteCountByDate.get(transaction.date) ?? 0}
                 </td>
                 <td className="border-b border-slate-200 px-3 py-2.5 align-top">
                   {isEditing ? (
@@ -266,7 +275,7 @@ export function TransactionsTable({
       </tbody>
       <tfoot>
         <tr className="bg-slate-50">
-          <td colSpan={7} className="px-3 py-3 text-right align-bottom">
+          <td colSpan={8} className="px-3 py-3 text-right align-bottom">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               Total Bulanan
             </p>
