@@ -36,10 +36,19 @@ export function getWeekOfMonth(isoDate: string): number {
   if (Number.isNaN(parsed.getTime())) {
     return 1;
   }
-  return Math.floor((parsed.getDate() - 1) / 7) + 1;
+  const year = parsed.getFullYear();
+  const month = parsed.getMonth();
+  const dayOfMonth = parsed.getDate();
+
+  const firstDay = new Date(year, month, 1);
+  const firstWeekdayMondayBased = (firstDay.getDay() + 6) % 7; // Monday=0 ... Sunday=6
+
+  return Math.floor((firstWeekdayMondayBased + dayOfMonth - 1) / 7) + 1;
 }
 
 export function getWeekCountInMonth(year: number, month: number): number {
   const daysInMonth = new Date(year, month, 0).getDate();
-  return Math.floor((daysInMonth - 1) / 7) + 1;
+  const firstDay = new Date(year, month - 1, 1);
+  const firstWeekdayMondayBased = (firstDay.getDay() + 6) % 7; // Monday=0 ... Sunday=6
+  return Math.ceil((firstWeekdayMondayBased + daysInMonth) / 7);
 }
