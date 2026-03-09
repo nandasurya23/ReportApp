@@ -243,12 +243,15 @@ export default function ReportPage() {
   }, [transactions, filterYear]);
 
   const weekOptions = useMemo(() => {
+    const daysInMonth = new Date(filterYear, filterMonth, 0).getDate();
     const totalWeekInMonth = getWeekCountInMonth(filterYear, filterMonth);
     const options: Array<{ value: string; label: string }> = [
       { value: "all", label: "Semua Minggu" },
     ];
     for (let week = 1; week <= totalWeekInMonth; week += 1) {
-      options.push({ value: String(week), label: `Minggu ${week}` });
+      const startDay = (week - 1) * 7 + 1;
+      const endDay = Math.min(week * 7, daysInMonth);
+      options.push({ value: String(week), label: `${startDay} - ${endDay}` });
     }
     return options;
   }, [filterYear, filterMonth]);
