@@ -206,6 +206,14 @@ export default function ReportPage() {
     return subtotalMap;
   }, [sortedTransactions]);
 
+  const noteCountByDate = useMemo(() => {
+    const noteMap = new Map<string, number>();
+    sortedTransactions.forEach((transaction) => {
+      noteMap.set(transaction.date, (noteMap.get(transaction.date) ?? 0) + 1);
+    });
+    return noteMap;
+  }, [sortedTransactions]);
+
   const yearOptions = useMemo(() => {
     const availableYears = new Set<number>([filterYear]);
     transactions.forEach((transaction) => {
@@ -393,6 +401,7 @@ export default function ReportPage() {
     return sortedTransactions.map((transaction, index) => ({
       no: index + 1,
       tanggal: formatISODateToLongID(transaction.date),
+      jumlahNota: noteCountByDate.get(transaction.date) ?? 0,
       totalKeseluruhan: dailySubtotalByDate.get(transaction.date) ?? 0,
       noKamar: transaction.roomNumber,
       satuan: transaction.quantityKg,
@@ -418,6 +427,7 @@ export default function ReportPage() {
     const header = [
       "No",
       "Tanggal",
+      "Jumlah Nota",
       "No Kamar",
       "Satuan",
       "Harga",
@@ -431,6 +441,7 @@ export default function ReportPage() {
         [
           row.no,
           row.tanggal,
+          row.jumlahNota,
           row.noKamar,
           row.satuan,
           row.harga,
@@ -458,6 +469,7 @@ export default function ReportPage() {
       worksheet.addRow([
         "No",
         "Tanggal",
+        "Jumlah Nota",
         "No Kamar",
         "Satuan",
         "Harga",
@@ -470,6 +482,7 @@ export default function ReportPage() {
         worksheet.addRow([
           row.no,
           row.tanggal,
+          row.jumlahNota,
           row.noKamar,
           row.satuan,
           row.harga,
@@ -479,9 +492,9 @@ export default function ReportPage() {
         ]);
       });
 
-      worksheet.addRow(["", "", "", "", "", "", "Keterangan", printKeterangan]);
-      worksheet.addRow(["", "", "", "", "", "", "Total Bulanan", monthlyTotal]);
-      worksheet.addRow(["", "", "", "", "", "", `TTD ${username}`, formatDateWITA()]);
+      worksheet.addRow(["", "", "", "", "", "", "", "Keterangan", printKeterangan]);
+      worksheet.addRow(["", "", "", "", "", "", "", "Total Bulanan", monthlyTotal]);
+      worksheet.addRow(["", "", "", "", "", "", "", `TTD ${username}`, formatDateWITA()]);
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
@@ -891,6 +904,7 @@ export default function ReportPage() {
               <TransactionsTable
                 filteredTransactions={sortedTransactions}
                 dailySubtotalByDate={dailySubtotalByDate}
+                noteCountByDate={noteCountByDate}
                 monthlyTotal={monthlyTotal}
                 editDraft={editDraft}
                 setEditDraft={setEditDraft}
@@ -962,6 +976,7 @@ export default function ReportPage() {
               {[
                 "Nomer",
                 "Tanggal tahun bulan",
+                "Jumlah Nota",
                 "No Kamar",
                 "Satuan",
                 "Harga",
@@ -991,6 +1006,9 @@ export default function ReportPage() {
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px" }}>{index + 1}</td>
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px" }}>
                   {formatISODateToLongID(transaction.date)}
+                </td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "right" }}>
+                  {noteCountByDate.get(transaction.date) ?? 0}
                 </td>
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px" }}>
                   {transaction.roomNumber}
@@ -1023,7 +1041,7 @@ export default function ReportPage() {
           <tfoot>
             <tr style={{ background: "#e2e8f0" }}>
               <td
-                colSpan={6}
+                colSpan={7}
                 style={{
                   border: "1px solid #cbd5e1",
                   padding: "8px 7px",
