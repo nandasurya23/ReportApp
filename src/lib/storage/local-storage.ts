@@ -66,6 +66,7 @@ export function getReportPreferences(): ReportPreferences {
     keterangan: "",
     month: null,
     year: null,
+    week: null,
   });
 }
 

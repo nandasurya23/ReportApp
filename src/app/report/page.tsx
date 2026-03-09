@@ -38,7 +38,12 @@ import {
   setTransactions,
 } from "@/lib/storage/local-storage";
 import { formatIDR } from "@/lib/utils/currency";
-import { formatDateWITA, formatISODateToLongID } from "@/lib/utils/date";
+import {
+  formatDateWITA,
+  formatISODateToLongID,
+  getWeekCountInMonth,
+  getWeekOfMonth,
+} from "@/lib/utils/date";
 import {
   createTransaction,
   getDailyTotal,
@@ -111,6 +116,7 @@ export default function ReportPage() {
   const [transactions, setTransactionState] = useState<LaundryTransaction[]>([]);
   const [filterMonth, setFilterMonth] = useState<number>(1);
   const [filterYear, setFilterYear] = useState<number>(2000);
+  const [filterWeek, setFilterWeek] = useState<number | null>(null);
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
   const [formRoomNumber, setFormRoomNumber] = useState("");
   const [reportClientName, setReportClientName] = useState("");
@@ -138,6 +144,7 @@ export default function ReportPage() {
     setReportKeterangan(preferences.keterangan);
     setFilterMonth(preferences.month ?? now.getMonth() + 1);
     setFilterYear(preferences.year ?? now.getFullYear());
+    setFilterWeek(preferences.week ?? null);
     setIsInitializing(false);
   }, [router]);
 
@@ -150,20 +157,30 @@ export default function ReportPage() {
       keterangan: reportKeterangan,
       month: filterMonth,
       year: filterYear,
+      week: filterWeek,
     });
-  }, [reportClientName, reportKeterangan, filterMonth, filterYear, isInitializing]);
+  }, [reportClientName, reportKeterangan, filterMonth, filterYear, filterWeek, isInitializing]);
 
   const persistTransactions = (nextTransactions: LaundryTransaction[]) => {
     setTransactionState(nextTransactions);
     setTransactions(nextTransactions);
   };
 
-  const filteredTransactions = useMemo(() => {
+  const monthlyTransactions = useMemo(() => {
     return getMonthlyTransactions(transactions, {
       month: filterMonth,
       year: filterYear,
     });
   }, [transactions, filterMonth, filterYear]);
+
+  const filteredTransactions = useMemo(() => {
+    if (!filterWeek) {
+      return monthlyTransactions;
+    }
+    return monthlyTransactions.filter(
+      (transaction) => getWeekOfMonth(transaction.date) === filterWeek,
+    );
+  }, [monthlyTransactions, filterWeek]);
 
   const sortedTransactions = useMemo(() => {
     return [...filteredTransactions].sort((a, b) => {
@@ -224,6 +241,17 @@ export default function ReportPage() {
     });
     return Array.from(availableYears).sort((a, b) => b - a);
   }, [transactions, filterYear]);
+
+  const weekOptions = useMemo(() => {
+    const totalWeekInMonth = getWeekCountInMonth(filterYear, filterMonth);
+    const options: Array<{ value: string; label: string }> = [
+      { value: "all", label: "Semua Minggu" },
+    ];
+    for (let week = 1; week <= totalWeekInMonth; week += 1) {
+      options.push({ value: String(week), label: `Minggu ${week}` });
+    }
+    return options;
+  }, [filterYear, filterMonth]);
 
   const printKeterangan = reportKeterangan.trim() || "-";
   const autoReportTitle = `Laporan ${reportClientName.trim() || "Nama Client"} bulan ${
@@ -558,12 +586,14 @@ export default function ReportPage() {
       keterangan: "",
       month,
       year,
+      week: null,
     });
 
     setReportClientName("");
     setReportKeterangan("");
     setFilterMonth(month);
     setFilterYear(year);
+    setFilterWeek(null);
     setFormDate(today);
     setFormRoomNumber("");
     setFormQuantityKg("1");
@@ -817,36 +847,51 @@ export default function ReportPage() {
             ref={reportRef}
             className="surface-card print-area min-w-0 p-4 sm:p-6"
           >
-            <div className="no-print flex flex-col gap-3 border-b border-slate-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
-              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
-                Tabel Transaksi Harian
-              </h2>
-              <div className="grid w-full gap-2 sm:grid-cols-2 lg:w-auto lg:grid-cols-[180px_140px_auto]">
-                <CustomSelect
-                  id="month-filter"
-                  label="Bulan"
-                  value={String(filterMonth)}
-                  onChange={(value) => setFilterMonth(Number(value))}
-                  options={MONTH_OPTIONS.map((month) => ({
-                    value: String(month.value),
-                    label: month.label,
-                  }))}
-                />
-                <CustomSelect
-                  id="year-filter"
-                  label="Tahun"
-                  value={String(filterYear)}
-                  onChange={(value) => setFilterYear(Number(value))}
-                  options={yearOptions.map((year) => ({
-                    value: String(year),
-                    label: String(year),
-                  }))}
-                />
-                <div className="grid grid-cols-2 gap-2 sm:col-span-2 lg:col-span-1 lg:flex lg:flex-wrap lg:justify-end">
+            <div className="no-print border-b border-slate-200 pb-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                    Tabel Transaksi Harian
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Filter berdasarkan bulan, tahun, dan minggu agar data tidak tercampur.
+                  </p>
+                </div>
+                <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-auto lg:min-w-[520px]">
+                  <CustomSelect
+                    id="month-filter"
+                    label="Bulan"
+                    value={String(filterMonth)}
+                    onChange={(value) => setFilterMonth(Number(value))}
+                    options={MONTH_OPTIONS.map((month) => ({
+                      value: String(month.value),
+                      label: month.label,
+                    }))}
+                  />
+                  <CustomSelect
+                    id="year-filter"
+                    label="Tahun"
+                    value={String(filterYear)}
+                    onChange={(value) => setFilterYear(Number(value))}
+                    options={yearOptions.map((year) => ({
+                      value: String(year),
+                      label: String(year),
+                    }))}
+                  />
+                  <CustomSelect
+                    id="week-filter"
+                    label="Minggu"
+                    value={filterWeek ? String(filterWeek) : "all"}
+                    onChange={(value) => setFilterWeek(value === "all" ? null : Number(value))}
+                    options={weekOptions}
+                  />
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
                 <button
                   type="button"
                   onClick={onResetAll}
-                    className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-rose-700 px-3 py-2 text-sm font-medium text-white hover:bg-rose-600 lg:w-auto"
+                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-rose-700 px-3 py-2 text-sm font-medium text-white hover:bg-rose-600"
                 >
                   <FiRefreshCw />
                   Reset Semua
@@ -854,7 +899,7 @@ export default function ReportPage() {
                 <button
                   type="button"
                   onClick={onPrint}
-                    className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-600 lg:w-auto"
+                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-600"
                 >
                   <FiPrinter />
                   Print
@@ -863,7 +908,7 @@ export default function ReportPage() {
                   type="button"
                   onClick={onSavePdf}
                   disabled={isSavingPdf}
-                    className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-60 lg:w-auto"
+                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-60"
                 >
                   {isSavingPdf && <Spinner size="sm" className="border-slate-200 border-t-white" />}
                   <FiFileText />
@@ -872,7 +917,7 @@ export default function ReportPage() {
                 <button
                   type="button"
                   onClick={onDownloadCSV}
-                    className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-600 lg:w-auto"
+                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-600"
                 >
                   <FiDownload />
                   Download CSV
@@ -881,13 +926,12 @@ export default function ReportPage() {
                   type="button"
                   onClick={onDownloadXLSX}
                   disabled={isExportingXlsx}
-                    className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-600 disabled:opacity-60 lg:w-auto"
+                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-600 disabled:opacity-60"
                 >
                   {isExportingXlsx && <Spinner size="sm" className="border-slate-200 border-t-white" />}
                   <FiGrid />
                   {isExportingXlsx ? "Exporting..." : "Download XLSX"}
                 </button>
-                </div>
               </div>
             </div>
 

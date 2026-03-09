@@ -30,3 +30,16 @@ export function formatISODateToLongID(isoDate: string): string {
     year: "numeric",
   }).format(parsed);
 }
+
+export function getWeekOfMonth(isoDate: string): number {
+  const parsed = new Date(`${isoDate}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return 1;
+  }
+  return Math.floor((parsed.getDate() - 1) / 7) + 1;
+}
+
+export function getWeekCountInMonth(year: number, month: number): number {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  return Math.floor((daysInMonth - 1) / 7) + 1;
+}

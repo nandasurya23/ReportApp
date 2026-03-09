@@ -3,4 +3,5 @@ export interface ReportPreferences {
   keterangan: string;
   month: number | null;
   year: number | null;
+  week: number | null;
 }
