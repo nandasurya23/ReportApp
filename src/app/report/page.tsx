@@ -167,6 +167,10 @@ export default function ReportPage() {
 
   const sortedTransactions = useMemo(() => {
     return [...filteredTransactions].sort((a, b) => {
+      if (a.date !== b.date) {
+        return a.date.localeCompare(b.date);
+      }
+
       if (a.quantityKg !== b.quantityKg) {
         return a.quantityKg - b.quantityKg;
       }
@@ -189,6 +193,17 @@ export default function ReportPage() {
 
   const monthlyTotal = useMemo(() => {
     return getMonthlyTotal(sortedTransactions);
+  }, [sortedTransactions]);
+
+  const dailySubtotalByDate = useMemo(() => {
+    const subtotalMap = new Map<string, number>();
+    sortedTransactions.forEach((transaction) => {
+      subtotalMap.set(
+        transaction.date,
+        (subtotalMap.get(transaction.date) ?? 0) + getDailyTotal(transaction),
+      );
+    });
+    return subtotalMap;
   }, [sortedTransactions]);
 
   const yearOptions = useMemo(() => {
@@ -378,6 +393,7 @@ export default function ReportPage() {
     return sortedTransactions.map((transaction, index) => ({
       no: index + 1,
       tanggal: formatISODateToLongID(transaction.date),
+      totalKeseluruhan: dailySubtotalByDate.get(transaction.date) ?? 0,
       noKamar: transaction.roomNumber,
       satuan: transaction.quantityKg,
       harga: transaction.pricePerKg,
@@ -406,6 +422,7 @@ export default function ReportPage() {
       "Satuan",
       "Harga",
       "Harga Total Harian",
+      "Total Keseluruhan",
       "Keterangan",
     ];
     const csvLines = [
@@ -418,12 +435,13 @@ export default function ReportPage() {
           row.satuan,
           row.harga,
           row.totalHarian,
+          row.totalKeseluruhan,
           `"${row.keterangan.replace(/"/g, '""')}"`,
         ].join(","),
       ),
-      `,,,,,Keterangan,${printKeterangan}`,
-      `,,,,,Total Bulanan,${monthlyTotal}`,
-      `,,,,,TTD ${username},${formatDateWITA()}`,
+      `,,,,,,Keterangan,${printKeterangan}`,
+      `,,,,,,Total Bulanan,${monthlyTotal}`,
+      `,,,,,,TTD ${username},${formatDateWITA()}`,
     ];
     const blob = new Blob([`\uFEFF${csvLines.join("\n")}`], {
       type: "text/csv;charset=utf-8;",
@@ -444,6 +462,7 @@ export default function ReportPage() {
         "Satuan",
         "Harga",
         "Harga Total Harian",
+        "Total Keseluruhan",
         "Keterangan",
       ]);
 
@@ -455,13 +474,14 @@ export default function ReportPage() {
           row.satuan,
           row.harga,
           row.totalHarian,
+          row.totalKeseluruhan,
           row.keterangan,
         ]);
       });
 
-      worksheet.addRow(["", "", "", "", "", "Keterangan", printKeterangan]);
-      worksheet.addRow(["", "", "", "", "", "Total Bulanan", monthlyTotal]);
-      worksheet.addRow(["", "", "", "", "", `TTD ${username}`, formatDateWITA()]);
+      worksheet.addRow(["", "", "", "", "", "", "Keterangan", printKeterangan]);
+      worksheet.addRow(["", "", "", "", "", "", "Total Bulanan", monthlyTotal]);
+      worksheet.addRow(["", "", "", "", "", "", `TTD ${username}`, formatDateWITA()]);
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
@@ -870,6 +890,7 @@ export default function ReportPage() {
               ) : (
               <TransactionsTable
                 filteredTransactions={sortedTransactions}
+                dailySubtotalByDate={dailySubtotalByDate}
                 monthlyTotal={monthlyTotal}
                 editDraft={editDraft}
                 setEditDraft={setEditDraft}
@@ -945,6 +966,7 @@ export default function ReportPage() {
                 "Satuan",
                 "Harga",
                 "Harga Total Harian",
+                "Total Keseluruhan",
                 "Keterangan",
               ].map(
                 (head) => (
@@ -989,6 +1011,9 @@ export default function ReportPage() {
                 >
                   {formatIDR(getDailyTotal(transaction))}
                 </td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "right" }}>
+                  {formatIDR(dailySubtotalByDate.get(transaction.date) ?? 0)}
+                </td>
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px" }}>
                   {transaction.clientName}
                 </td>
@@ -998,7 +1023,7 @@ export default function ReportPage() {
           <tfoot>
             <tr style={{ background: "#e2e8f0" }}>
               <td
-                colSpan={5}
+                colSpan={6}
                 style={{
                   border: "1px solid #cbd5e1",
                   padding: "8px 7px",
