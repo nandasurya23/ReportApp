@@ -429,17 +429,21 @@ export default function ReportPage() {
   };
 
   const buildExportRows = () => {
-    return sortedTransactions.map((transaction, index) => ({
+    return sortedTransactions.map((transaction, index) => {
+      const isFirstDateRow =
+        index === 0 || sortedTransactions[index - 1].date !== transaction.date;
+      return {
       no: index + 1,
       tanggal: formatISODateToLongID(transaction.date),
-      jumlahNota: noteCountByDate.get(transaction.date) ?? 0,
-      totalKeseluruhan: dailySubtotalByDate.get(transaction.date) ?? 0,
+      jumlahNota: isFirstDateRow ? noteCountByDate.get(transaction.date) ?? 0 : "",
+      totalKeseluruhan: isFirstDateRow ? dailySubtotalByDate.get(transaction.date) ?? 0 : "",
       noKamar: transaction.roomNumber,
       satuan: transaction.quantityKg,
       harga: transaction.pricePerKg,
       totalHarian: getDailyTotal(transaction),
-      keterangan: transaction.clientName,
-    }));
+      keterangan: isFirstDateRow ? transaction.clientName : "",
+    };
+    });
   };
 
   const downloadBlob = (blob: Blob, fileName: string) => {
@@ -1048,14 +1052,17 @@ export default function ReportPage() {
             </tr>
           </thead>
           <tbody>
-            {sortedTransactions.map((transaction, index) => (
+            {sortedTransactions.map((transaction, index) => {
+              const isFirstDateRow =
+                index === 0 || sortedTransactions[index - 1].date !== transaction.date;
+              return (
               <tr key={transaction.id}>
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px" }}>{index + 1}</td>
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px" }}>
-                  {formatISODateToLongID(transaction.date)}
+                  {isFirstDateRow ? formatISODateToLongID(transaction.date) : ""}
                 </td>
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "right" }}>
-                  {noteCountByDate.get(transaction.date) ?? 0}
+                  {isFirstDateRow ? noteCountByDate.get(transaction.date) ?? 0 : ""}
                 </td>
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px" }}>
                   {transaction.roomNumber}
@@ -1077,13 +1084,14 @@ export default function ReportPage() {
                   {formatIDR(getDailyTotal(transaction))}
                 </td>
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "right" }}>
-                  {formatIDR(dailySubtotalByDate.get(transaction.date) ?? 0)}
+                  {isFirstDateRow ? formatIDR(dailySubtotalByDate.get(transaction.date) ?? 0) : ""}
                 </td>
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px" }}>
-                  {transaction.clientName}
+                  {isFirstDateRow ? transaction.clientName : ""}
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
           <tfoot>
             <tr style={{ background: "#e2e8f0" }}>

@@ -92,6 +92,7 @@ export function TransactionsTable({
             const isEditing = editDraft?.id === transaction.id;
             const isFirstDateRow =
               index === 0 || filteredTransactions[index - 1].date !== transaction.date;
+            const showDateGroup = isFirstDateRow || isEditing;
             const rowTotal = isEditing
               ? Number(editDraft.quantityKg || "0") * parsePriceInput(editDraft.priceInput)
               : getDailyTotal(transaction);
@@ -124,11 +125,11 @@ export function TransactionsTable({
                       className="input-field max-w-[170px] px-2 py-1"
                     />
                   ) : (
-                    isFirstDateRow ? formatISODateToLongID(transaction.date) : ""
+                    showDateGroup ? formatISODateToLongID(transaction.date) : ""
                   )}
                 </td>
                 <td className="border-b border-slate-200 px-3 py-2.5 text-right align-top">
-                  {noteCountByDate.get(transaction.date) ?? 0}
+                  {showDateGroup ? noteCountByDate.get(transaction.date) ?? 0 : ""}
                 </td>
                 <td className="border-b border-slate-200 px-3 py-2.5 align-top">
                   {isEditing ? (
@@ -197,7 +198,7 @@ export function TransactionsTable({
                   {formatIDR(rowTotal)}
                 </td>
                 <td className="border-b border-slate-200 px-3 py-2.5 text-right align-top">
-                  {isFirstDateRow ? formatIDR(dailySubtotalByDate.get(transaction.date) ?? 0) : ""}
+                  {showDateGroup ? formatIDR(dailySubtotalByDate.get(transaction.date) ?? 0) : ""}
                 </td>
                 <td className="border-b border-slate-200 px-3 py-2.5 align-top">
                   {isEditing ? (
@@ -212,7 +213,7 @@ export function TransactionsTable({
                       className="input-field max-w-[180px] px-2 py-1"
                     />
                   ) : (
-                    transaction.clientName
+                    showDateGroup ? transaction.clientName : ""
                   )}
                 </td>
                 <td className="border-b border-slate-200 px-2.5 py-2.5 align-top">
