@@ -1126,33 +1126,21 @@ export default function ReportPage() {
             );
             })}
           </tbody>
-          <tfoot>
-            <tr style={{ background: "#e2e8f0" }}>
-              <td
-                colSpan={7}
-                style={{
-                  border: "1px solid #cbd5e1",
-                  padding: "8px 7px",
-                  textAlign: "right",
-                  fontWeight: 600,
-                }}
-              >
-                Total Bulanan
-              </td>
-              <td
-                style={{
-                  border: "1px solid #cbd5e1",
-                  padding: "8px 7px",
-                  textAlign: "right",
-                  fontWeight: 700,
-                }}
-              >
-                {formatIDR(monthlyTotal)}
-              </td>
-              <td style={{ border: "1px solid #cbd5e1", padding: "8px 7px" }} />
-            </tr>
-          </tfoot>
         </table>
+        <div
+          style={{
+            marginTop: "10px",
+            border: "1px solid #cbd5e1",
+            background: "#e2e8f0",
+            padding: "8px 10px",
+            textAlign: "right",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: "11px", fontWeight: 600 }}>Total Bulanan</p>
+          <p style={{ margin: "2px 0 0", fontSize: "14px", fontWeight: 700 }}>
+            {formatIDR(monthlyTotal)}
+          </p>
+        </div>
       </div>
     </main>
   );
