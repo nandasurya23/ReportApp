@@ -224,9 +224,12 @@ export default function ReportPage() {
   }, [sortedTransactions]);
 
   const noteCountByDate = useMemo(() => {
+    const dateCounter = new Map<string, number>();
     const noteMap = new Map<string, number>();
     sortedTransactions.forEach((transaction) => {
-      noteMap.set(transaction.date, (noteMap.get(transaction.date) ?? 0) + 1);
+      const next = (dateCounter.get(transaction.date) ?? 0) + 1;
+      dateCounter.set(transaction.date, next);
+      noteMap.set(transaction.id, next);
     });
     return noteMap;
   }, [sortedTransactions]);
@@ -435,7 +438,7 @@ export default function ReportPage() {
       return {
       no: index + 1,
       tanggal: formatISODateToLongID(transaction.date),
-      jumlahNota: isFirstDateRow ? noteCountByDate.get(transaction.date) ?? 0 : "",
+      jumlahNota: noteCountByDate.get(transaction.id) ?? 0,
       totalKeseluruhan: isFirstDateRow ? dailySubtotalByDate.get(transaction.date) ?? 0 : "",
       noKamar: transaction.roomNumber,
       satuan: transaction.quantityKg,
@@ -556,23 +559,53 @@ export default function ReportPage() {
         useCORS: true,
         backgroundColor: "#ffffff",
       });
-      const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "pt", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth - 32;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const margin = 16;
+      const pageContentWidthPt = pdfWidth - margin * 2;
+      const pageContentHeightPt = pdfHeight - margin * 2;
 
-      let heightLeft = imgHeight;
-      let position = 16;
-      pdf.addImage(imgData, "PNG", 16, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight - 32;
+      const pxPerPt = canvas.width / pageContentWidthPt;
+      const pageSliceHeightPx = Math.max(1, Math.floor(pageContentHeightPt * pxPerPt));
 
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight + 16;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 16, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight - 32;
+      let offsetY = 0;
+      let pageIndex = 0;
+
+      while (offsetY < canvas.height) {
+        const sliceHeightPx = Math.min(pageSliceHeightPx, canvas.height - offsetY);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceHeightPx;
+
+        const sliceContext = sliceCanvas.getContext("2d");
+        if (!sliceContext) {
+          throw new Error("Failed to create canvas context for PDF slice.");
+        }
+
+        // Render each vertical slice once to avoid duplicated rows across pages.
+        sliceContext.drawImage(
+          canvas,
+          0,
+          offsetY,
+          canvas.width,
+          sliceHeightPx,
+          0,
+          0,
+          canvas.width,
+          sliceHeightPx,
+        );
+
+        const sliceImgData = sliceCanvas.toDataURL("image/png");
+        const sliceHeightPt = (sliceHeightPx * pageContentWidthPt) / canvas.width;
+
+        if (pageIndex > 0) {
+          pdf.addPage();
+        }
+        pdf.addImage(sliceImgData, "PNG", margin, margin, pageContentWidthPt, sliceHeightPt);
+
+        offsetY += sliceHeightPx;
+        pageIndex += 1;
       }
 
       pdf.save(`laundry-report-${filterYear}-${filterMonth}.pdf`);
@@ -1062,7 +1095,7 @@ export default function ReportPage() {
                   {isFirstDateRow ? formatISODateToLongID(transaction.date) : ""}
                 </td>
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "right" }}>
-                  {isFirstDateRow ? noteCountByDate.get(transaction.date) ?? 0 : ""}
+                  {noteCountByDate.get(transaction.id) ?? 0}
                 </td>
                 <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px" }}>
                   {transaction.roomNumber}
@@ -1093,33 +1126,21 @@ export default function ReportPage() {
             );
             })}
           </tbody>
-          <tfoot>
-            <tr style={{ background: "#e2e8f0" }}>
-              <td
-                colSpan={7}
-                style={{
-                  border: "1px solid #cbd5e1",
-                  padding: "8px 7px",
-                  textAlign: "right",
-                  fontWeight: 600,
-                }}
-              >
-                Total Bulanan
-              </td>
-              <td
-                style={{
-                  border: "1px solid #cbd5e1",
-                  padding: "8px 7px",
-                  textAlign: "right",
-                  fontWeight: 700,
-                }}
-              >
-                {formatIDR(monthlyTotal)}
-              </td>
-              <td style={{ border: "1px solid #cbd5e1", padding: "8px 7px" }} />
-            </tr>
-          </tfoot>
         </table>
+        <div
+          style={{
+            marginTop: "10px",
+            border: "1px solid #cbd5e1",
+            background: "#e2e8f0",
+            padding: "8px 10px",
+            textAlign: "right",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: "11px", fontWeight: 600 }}>Total Bulanan</p>
+          <p style={{ margin: "2px 0 0", fontSize: "14px", fontWeight: 700 }}>
+            {formatIDR(monthlyTotal)}
+          </p>
+        </div>
       </div>
     </main>
   );

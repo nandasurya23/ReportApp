@@ -45,7 +45,7 @@ export function TransactionsTable({
   formatPriceInput,
 }: TransactionsTableProps) {
   return (
-    <table className="report-table min-w-[1160px] border-separate border-spacing-0 overflow-hidden rounded-xl border border-slate-200 bg-white text-[13px] text-slate-700">
+    <table className="report-table min-w-[1160px] border-collapse border border-slate-300 bg-white text-[13px] text-slate-700">
       <colgroup>
         <col className="w-[70px]" />
         <col className="w-[180px]" />
@@ -59,29 +59,29 @@ export function TransactionsTable({
         <col className="w-[126px]" />
       </colgroup>
       <thead>
-        <tr className="sticky top-0 z-10 bg-slate-50 text-left text-slate-600">
-          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
+        <tr className="bg-slate-200 text-left text-slate-900">
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
             Nomer
           </th>
-          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
             Tanggal
           </th>
-          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-right">
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">
             Jumlah Nota
           </th>
-          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">No Kamar</th>
-          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-right">Satuan</th>
-          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-right">Harga</th>
-          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-right">
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">No Kamar</th>
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">Satuan</th>
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">Harga</th>
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">
             Harga Total Harian
           </th>
-          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-right">
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">
             Total Keseluruhan
           </th>
-          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
             Keterangan
           </th>
-          <th className="border-b border-slate-200 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-center">
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
             Aksi
           </th>
         </tr>
@@ -108,11 +108,11 @@ export function TransactionsTable({
                 className={`transition-colors ${
                   isEditing
                     ? "bg-amber-50 ring-1 ring-inset ring-amber-300"
-                    : "bg-white odd:bg-slate-50/50 hover:bg-slate-50"
+                    : "bg-white"
                 } text-slate-900`}
               >
-                <td className="border-b border-slate-200 px-3 py-2.5 align-top">{index + 1}</td>
-                <td className="border-b border-slate-200 px-3 py-2.5 align-top">
+                <td className="border border-slate-300 px-3 py-2 align-top">{index + 1}</td>
+                <td className="border border-slate-300 px-3 py-2 align-top">
                   {isEditing ? (
                     <input
                       type="date"
@@ -128,10 +128,10 @@ export function TransactionsTable({
                     showDateGroup ? formatISODateToLongID(transaction.date) : ""
                   )}
                 </td>
-                <td className="border-b border-slate-200 px-3 py-2.5 text-right align-top">
-                  {showDateGroup ? noteCountByDate.get(transaction.date) ?? 0 : ""}
+                <td className="border border-slate-300 px-3 py-2 text-right align-top">
+                  {noteCountByDate.get(transaction.id) ?? 0}
                 </td>
-                <td className="border-b border-slate-200 px-3 py-2.5 align-top">
+                <td className="border border-slate-300 px-3 py-2 align-top">
                   {isEditing ? (
                     <input
                       type="text"
@@ -147,7 +147,7 @@ export function TransactionsTable({
                     transaction.roomNumber
                   )}
                 </td>
-                <td className="border-b border-slate-200 px-3 py-2.5 text-right align-top">
+                <td className="border border-slate-300 px-3 py-2 text-right align-top">
                   {isEditing ? (
                     <input
                       type="text"
@@ -172,7 +172,7 @@ export function TransactionsTable({
                     transaction.quantityKg
                   )}
                 </td>
-                <td className="border-b border-slate-200 px-3 py-2.5 text-right align-top">
+                <td className="border border-slate-300 px-3 py-2 text-right align-top">
                   {isEditing ? (
                     <input
                       type="text"
@@ -194,13 +194,13 @@ export function TransactionsTable({
                     formatIDR(transaction.pricePerKg)
                   )}
                 </td>
-                <td className="border-b border-slate-200 px-3 py-2.5 text-right align-top font-semibold text-slate-900">
+                <td className="border border-slate-300 px-3 py-2 text-right align-top font-semibold text-slate-900">
                   {formatIDR(rowTotal)}
                 </td>
-                <td className="border-b border-slate-200 px-3 py-2.5 text-right align-top">
+                <td className="border border-slate-300 px-3 py-2 text-right align-top">
                   {showDateGroup ? formatIDR(dailySubtotalByDate.get(transaction.date) ?? 0) : ""}
                 </td>
-                <td className="border-b border-slate-200 px-3 py-2.5 align-top">
+                <td className="border border-slate-300 px-3 py-2 align-top">
                   {isEditing ? (
                     <input
                       type="text"
@@ -216,7 +216,7 @@ export function TransactionsTable({
                     showDateGroup ? transaction.clientName : ""
                   )}
                 </td>
-                <td className="border-b border-slate-200 px-2.5 py-2.5 align-top">
+                <td className="border border-slate-300 px-2.5 py-2 align-top">
                   <div className="no-print-content flex flex-wrap items-center justify-center gap-1.5">
                     <AnimatePresence mode="wait" initial={false}>
                       {isEditing ? (
@@ -277,16 +277,16 @@ export function TransactionsTable({
         </AnimatePresence>
       </tbody>
       <tfoot>
-        <tr className="bg-slate-50">
-          <td colSpan={8} className="px-3 py-3 text-right align-bottom">
+        <tr className="bg-slate-200">
+          <td colSpan={8} className="border border-slate-300 px-3 py-2 text-right align-bottom">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               Total Bulanan
             </p>
           </td>
-          <td className="px-3 py-3 text-right align-bottom">
+          <td className="border border-slate-300 px-3 py-2 text-right align-bottom">
             <p className="text-base font-bold text-slate-900">{formatIDR(monthlyTotal)}</p>
           </td>
-          <td className="no-print-content px-3 py-3 align-bottom" />
+          <td className="no-print-content border border-slate-300 px-3 py-2 align-bottom" />
         </tr>
       </tfoot>
     </table>
