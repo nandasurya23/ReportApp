@@ -161,6 +161,15 @@ body {
     position: static !important;
   }
 
+  /* Prevent browser print engine from repeating table header/footer on every page */
+  .report-table thead {
+    display: table-row-group !important;
+  }
+
+  .report-table tfoot {
+    display: table-row-group !important;
+  }
+
   .report-table th,
   .report-table td {
     white-space: normal !important;

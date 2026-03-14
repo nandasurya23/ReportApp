@@ -45,18 +45,18 @@ export function TransactionsTable({
   formatPriceInput,
 }: TransactionsTableProps) {
   return (
-    <table className="report-table min-w-[1160px] border-collapse border border-slate-300 bg-white text-[13px] text-slate-700">
+    <table className="report-table min-w-290 border-collapse border border-slate-300 bg-white text-[13px] text-slate-700">
       <colgroup>
-        <col className="w-[70px]" />
-        <col className="w-[180px]" />
-        <col className="w-[100px]" />
-        <col className="w-[110px]" />
-        <col className="w-[90px]" />
-        <col className="w-[140px]" />
-        <col className="w-[170px]" />
-        <col className="w-[170px]" />
+        <col className="w-17.5" />
+        <col className="w-45" />
+        <col className="w-25" />
+        <col className="w-27.5" />
+        <col className="w-22.5" />
+        <col className="w-35" />
+        <col className="w-42.5" />
+        <col className="w-42.5" />
         <col className="w-auto" />
-        <col className="w-[126px]" />
+        <col className="w-31.5" />
       </colgroup>
       <thead>
         <tr className="bg-slate-200 text-left text-slate-900">
@@ -66,12 +66,18 @@ export function TransactionsTable({
           <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
             Tanggal
           </th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
             Jumlah Nota
           </th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">No Kamar</th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">Satuan</th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">Harga</th>
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+            No Kamar
+          </th>
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+            Satuan
+          </th>
+          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+            Harga
+          </th>
           <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">
             Harga Total Harian
           </th>
@@ -122,7 +128,7 @@ export function TransactionsTable({
                           prev ? { ...prev, date: event.target.value } : prev,
                         )
                       }
-                      className="input-field max-w-[170px] px-2 py-1"
+                      className="input-field max-w-42.5 px-2 py-1"
                     />
                   ) : (
                     showDateGroup ? formatISODateToLongID(transaction.date) : ""
@@ -141,7 +147,7 @@ export function TransactionsTable({
                           prev ? { ...prev, roomNumber: event.target.value } : prev,
                         )
                       }
-                      className="input-field max-w-[130px] px-2 py-1"
+                      className="input-field max-w-32.5 px-2 py-1"
                     />
                   ) : (
                     transaction.roomNumber
@@ -210,7 +216,7 @@ export function TransactionsTable({
                           prev ? { ...prev, clientName: event.target.value } : prev,
                         )
                       }
-                      className="input-field max-w-[180px] px-2 py-1"
+                      className="input-field max-w-45 px-2 py-1"
                     />
                   ) : (
                     showDateGroup ? transaction.clientName : ""
