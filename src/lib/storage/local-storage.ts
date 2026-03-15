@@ -44,6 +44,13 @@ export function setAuthSession(session: AuthSession): void {
   writeJSON(STORAGE_KEYS.AUTH_SESSION, session);
 }
 
+export function setAuthSessionFromUsername(username: string): void {
+  setAuthSession({
+    username,
+    loggedInAt: new Date().toISOString(),
+  });
+}
+
 export function clearAuthSession(): void {
   const storage = getStorage();
   if (!storage) {

@@ -1,11 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Workbook } from "exceljs";
 import { motion } from "framer-motion";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { useRouter } from "next/navigation";
 import {
   FiDownload,
   FiPlus,
@@ -26,16 +25,32 @@ import { EmptyState } from "@/components/report/empty-state";
 import { TransactionsTable } from "@/components/report/transactions-table";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
+import { useReportAuth } from "@/app/report/use-report-auth";
+import { useReportDerived } from "@/app/report/use-report-derived";
 
 import {
-  clearAuthSession,
-  getReportPreferences,
-  setAuthSession,
   setReportPreferences,
 } from "@/lib/storage/local-storage";
+import {
+  createTransactionRequest,
+  deleteTransactionRequest,
+  getTransactionsPayload,
+  getTransactionsRequest,
+  readApiError,
+  resetTransactionsRequest,
+  updateTransactionRequest,
+} from "@/lib/services/report-api";
 import { formatIDR } from "@/lib/utils/currency";
 import { formatDateWITA, formatISODateToLongID } from "@/lib/utils/date";
-import { getDailyTotal, getMonthlyTotal } from "@/lib/utils/laundry";
+import { getDailyTotal } from "@/lib/utils/laundry";
+import {
+  buildExportRows as buildExportRowsData,
+  formatThousands,
+  formatPriceInput,
+  mapTransactionRows,
+  parsePriceInput,
+  parseQuantityInput,
+} from "@/lib/utils/report-transform";
 import { LaundryTransaction } from "@/types/laundry";
 
 interface EditDraft {
@@ -47,44 +62,22 @@ interface EditDraft {
   priceInput: string;
 }
 
-function formatThousands(value: number): string {
-  return value.toLocaleString("id-ID");
-}
-
-function sanitizeNumberInput(raw: string): string {
-  return raw.replace(/[^\d]/g, "");
-}
-
-function formatPriceInput(raw: string): string {
-  const digits = sanitizeNumberInput(raw);
-  if (!digits) {
-    return "";
+async function fetchTransactionsList(): Promise<LaundryTransaction[] | null> {
+  try {
+    const response = await getTransactionsRequest();
+    if (!response.ok) {
+      return null;
+    }
+    const payload = await getTransactionsPayload(response);
+    return mapTransactionRows(payload.transactions);
+  } catch {
+    return null;
   }
-  return formatThousands(Number(digits));
-}
-
-function parsePriceInput(raw: string): number {
-  const digits = sanitizeNumberInput(raw);
-  if (!digits) {
-    return 0;
-  }
-  return Number(digits);
-}
-
-function parseQuantityInput(raw: string): number {
-  const normalized = raw.replace(",", ".").trim();
-  if (!normalized) {
-    return 0;
-  }
-  return Number(normalized);
 }
 
 export default function ReportPage() {
-  const INACTIVITY_LOGOUT_MS = 60 * 60 * 1000;
-  const router = useRouter();
   const reportRef = useRef<HTMLDivElement>(null);
   const pdfExportRef = useRef<HTMLDivElement>(null);
-  const inactivityTimeoutRef = useRef<number | null>(null);
   const [username, setUsername] = useState("");
   const [transactions, setTransactionState] = useState<LaundryTransaction[]>([]);
   const [startDate, setStartDate] = useState<string>("");
@@ -107,103 +100,6 @@ export default function ReportPage() {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadTransactionsFromBackend = async (): Promise<LaundryTransaction[] | null> => {
-      setIsLoadingTransactions(true);
-      setTransactionError("");
-      try {
-        const transactionResponse = await fetch("/api/transactions", {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-        });
-        if (!transactionResponse.ok) {
-          setTransactionError("Gagal memuat transaksi dari server.");
-          return null;
-        }
-        const transactionPayload = (await transactionResponse.json().catch(() => ({}))) as {
-          transactions?: Array<{
-            id: string;
-            date: string;
-            roomNumber: string;
-            clientName: string;
-            quantityKg: number | string;
-            pricePerKg: number | string;
-          }>;
-        };
-        return (transactionPayload.transactions ?? []).map((transaction) => ({
-          id: transaction.id,
-          date: transaction.date,
-          roomNumber: transaction.roomNumber,
-          clientName: transaction.clientName,
-          quantityKg: Number(transaction.quantityKg),
-          pricePerKg: Number(transaction.pricePerKg),
-        }));
-      } catch {
-        setTransactionError("Gagal memuat transaksi dari server.");
-        return null;
-      } finally {
-        setIsLoadingTransactions(false);
-      }
-    };
-
-    const bootstrap = async () => {
-      try {
-        const response = await fetch("/api/auth/me", {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-        });
-
-        const payload = (await response.json().catch(() => ({}))) as {
-          user?: { username?: string };
-        };
-
-        if (!response.ok || !payload.user?.username) {
-          clearAuthSession();
-          if (!cancelled) {
-            router.replace("/login");
-          }
-          return;
-        }
-
-        if (cancelled) {
-          return;
-        }
-
-        setAuthSession({
-          username: payload.user.username,
-          loggedInAt: new Date().toISOString(),
-        });
-        const preferences = getReportPreferences();
-        const backendTransactions = await loadTransactionsFromBackend();
-        setUsername(payload.user.username);
-        const nextTransactions = backendTransactions ?? [];
-        setTransactionState(nextTransactions);
-        setReportClientName(preferences.clientName);
-        setReportKeterangan(preferences.keterangan);
-        setStartDate(preferences.startDate ?? "");
-        setEndDate(preferences.endDate ?? "");
-      } catch {
-        clearAuthSession();
-        if (!cancelled) {
-          router.replace("/login");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsInitializing(false);
-        }
-      }
-    };
-
-    void bootstrap();
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
-
-  useEffect(() => {
     if (isInitializing) {
       return;
     }
@@ -215,138 +111,35 @@ export default function ReportPage() {
     });
   }, [reportClientName, reportKeterangan, startDate, endDate, isInitializing]);
 
-  useEffect(() => {
-    if (isInitializing) {
-      return;
-    }
+  const { onLogout } = useReportAuth({
+    isInitializing,
+    setIsInitializing,
+    setIsLoadingTransactions,
+    setTransactionError,
+    setUsername,
+    setTransactionState,
+    setReportClientName,
+    setReportKeterangan,
+    setStartDate,
+    setEndDate,
+    fetchTransactionsList,
+  });
 
-    let isLoggingOut = false;
-    const clearTimer = () => {
-      if (inactivityTimeoutRef.current !== null) {
-        window.clearTimeout(inactivityTimeoutRef.current);
-      }
-      inactivityTimeoutRef.current = null;
-    };
-
-    const logoutForInactivity = async () => {
-      if (isLoggingOut) {
-        return;
-      }
-      isLoggingOut = true;
-      try {
-        await fetch("/api/auth/logout", {
-          method: "POST",
-          credentials: "include",
-        });
-      } catch {
-        // no-op: local cleanup still runs
-      } finally {
-        clearAuthSession();
-        router.replace("/login");
-      }
-    };
-
-    const resetInactivityTimer = () => {
-      clearTimer();
-      inactivityTimeoutRef.current = window.setTimeout(() => {
-        void logoutForInactivity();
-      }, INACTIVITY_LOGOUT_MS);
-    };
-
-    const events: Array<keyof WindowEventMap> = [
-      "mousemove",
-      "mousedown",
-      "keydown",
-      "scroll",
-      "touchstart",
-      "focus",
-    ];
-    events.forEach((eventName) => {
-      window.addEventListener(eventName, resetInactivityTimer, { passive: true });
-    });
-
-    resetInactivityTimer();
-
-    return () => {
-      clearTimer();
-      events.forEach((eventName) => {
-        window.removeEventListener(eventName, resetInactivityTimer);
-      });
-    };
-  }, [isInitializing, router]);
-
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((transaction) => {
-      if (startDate && transaction.date < startDate) {
-        return false;
-      }
-      if (endDate && transaction.date > endDate) {
-        return false;
-      }
-      return true;
-    });
-  }, [transactions, startDate, endDate]);
-
-  const sortedTransactions = useMemo(() => {
-    return [...filteredTransactions].sort((a, b) => {
-      if (a.date !== b.date) {
-        return a.date.localeCompare(b.date);
-      }
-
-      if (a.quantityKg !== b.quantityKg) {
-        return a.quantityKg - b.quantityKg;
-      }
-
-      const roomA = Number(a.roomNumber.replace(/[^\d]/g, ""));
-      const roomB = Number(b.roomNumber.replace(/[^\d]/g, ""));
-      const hasRoomNumA = !Number.isNaN(roomA) && roomA > 0;
-      const hasRoomNumB = !Number.isNaN(roomB) && roomB > 0;
-
-      if (hasRoomNumA && hasRoomNumB && roomA !== roomB) {
-        return roomA - roomB;
-      }
-      if (a.roomNumber !== b.roomNumber) {
-        return a.roomNumber.localeCompare(b.roomNumber, "id");
-      }
-
-      return getDailyTotal(a) - getDailyTotal(b);
-    });
-  }, [filteredTransactions]);
-
-  const monthlyTotal = useMemo(() => {
-    return getMonthlyTotal(sortedTransactions);
-  }, [sortedTransactions]);
-
-  const dailySubtotalByDate = useMemo(() => {
-    const subtotalMap = new Map<string, number>();
-    sortedTransactions.forEach((transaction) => {
-      subtotalMap.set(
-        transaction.date,
-        (subtotalMap.get(transaction.date) ?? 0) + getDailyTotal(transaction),
-      );
-    });
-    return subtotalMap;
-  }, [sortedTransactions]);
-
-  const noteCountByDate = useMemo(() => {
-    const dateCounter = new Map<string, number>();
-    const noteMap = new Map<string, number>();
-    sortedTransactions.forEach((transaction) => {
-      const next = (dateCounter.get(transaction.date) ?? 0) + 1;
-      dateCounter.set(transaction.date, next);
-      noteMap.set(transaction.id, next);
-    });
-    return noteMap;
-  }, [sortedTransactions]);
-
-  const printKeterangan = reportKeterangan.trim() || "-";
-  const activeDateContext = startDate || endDate || formDate;
-  const activeDate = new Date(`${activeDateContext}T00:00:00`);
-  const activeMonthYear = Number.isNaN(activeDate.getTime())
-    ? new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(new Date())
-    : new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(activeDate);
-  const autoReportTitle = `Laporan ${reportClientName.trim() || "Nama Client"} - ${activeMonthYear}`;
-  const finalReportTitle = autoReportTitle;
+  const {
+    sortedTransactions,
+    monthlyTotal,
+    dailySubtotalByDate,
+    noteCountByDate,
+    finalReportTitle,
+    printKeterangan,
+  } = useReportDerived({
+    transactions,
+    startDate,
+    endDate,
+    reportClientName,
+    formDate,
+    reportKeterangan,
+  });
 
   const validateInput = (input: {
     date: string;
@@ -408,23 +201,16 @@ export default function ReportPage() {
     try {
       setIsCreatingTransaction(true);
       setTransactionError("");
-      const createResponse = await fetch("/api/transactions", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          date: formDate,
-          roomNumber: formRoomNumber.trim(),
-          clientName: keterangan,
-          quantityKg,
-          pricePerKg,
-        }),
+      const createResponse = await createTransactionRequest({
+        date: formDate,
+        roomNumber: formRoomNumber.trim(),
+        clientName: keterangan,
+        quantityKg,
+        pricePerKg,
       });
 
       if (!createResponse.ok) {
-        const payload = (await createResponse.json().catch(() => ({}))) as { error?: string };
+        const payload = await readApiError(createResponse);
         const message = payload.error || "Gagal menambahkan transaksi.";
         setError(message);
         setTransactionError(message);
@@ -432,30 +218,8 @@ export default function ReportPage() {
         return;
       }
 
-      const listResponse = await fetch("/api/transactions", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (listResponse.ok) {
-        const listPayload = (await listResponse.json().catch(() => ({}))) as {
-          transactions?: Array<{
-            id: string;
-            date: string;
-            roomNumber: string;
-            clientName: string;
-            quantityKg: number | string;
-            pricePerKg: number | string;
-          }>;
-        };
-        const nextTransactions = (listPayload.transactions ?? []).map((transaction) => ({
-          id: transaction.id,
-          date: transaction.date,
-          roomNumber: transaction.roomNumber,
-          clientName: transaction.clientName,
-          quantityKg: Number(transaction.quantityKg),
-          pricePerKg: Number(transaction.pricePerKg),
-        }));
+      const nextTransactions = await fetchTransactionsList();
+      if (nextTransactions) {
         setTransactionState(nextTransactions);
       } else {
         setTransactionError("Transaksi berhasil ditambah, tapi gagal memuat ulang data.");
@@ -515,23 +279,16 @@ export default function ReportPage() {
     try {
       setIsUpdatingTransaction(true);
       setTransactionError("");
-      const updateResponse = await fetch(`/api/transactions/${editDraft.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          date: editDraft.date,
-          roomNumber: editDraft.roomNumber.trim(),
-          clientName: editDraft.clientName.trim(),
-          quantityKg,
-          pricePerKg,
-        }),
+      const updateResponse = await updateTransactionRequest(editDraft.id, {
+        date: editDraft.date,
+        roomNumber: editDraft.roomNumber.trim(),
+        clientName: editDraft.clientName.trim(),
+        quantityKg,
+        pricePerKg,
       });
 
       if (!updateResponse.ok) {
-        const payload = (await updateResponse.json().catch(() => ({}))) as { error?: string };
+        const payload = await readApiError(updateResponse);
         const message = payload.error || "Gagal memperbarui transaksi.";
         setError(message);
         setTransactionError(message);
@@ -539,30 +296,8 @@ export default function ReportPage() {
         return;
       }
 
-      const listResponse = await fetch("/api/transactions", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (listResponse.ok) {
-        const listPayload = (await listResponse.json().catch(() => ({}))) as {
-          transactions?: Array<{
-            id: string;
-            date: string;
-            roomNumber: string;
-            clientName: string;
-            quantityKg: number | string;
-            pricePerKg: number | string;
-          }>;
-        };
-        const nextTransactions = (listPayload.transactions ?? []).map((transaction) => ({
-          id: transaction.id,
-          date: transaction.date,
-          roomNumber: transaction.roomNumber,
-          clientName: transaction.clientName,
-          quantityKg: Number(transaction.quantityKg),
-          pricePerKg: Number(transaction.pricePerKg),
-        }));
+      const nextTransactions = await fetchTransactionsList();
+      if (nextTransactions) {
         setTransactionState(nextTransactions);
       } else {
         setTransactionError("Transaksi berhasil diupdate, tapi gagal memuat ulang data.");
@@ -588,43 +323,18 @@ export default function ReportPage() {
     try {
       setIsDeletingTransaction(true);
       setTransactionError("");
-      const deleteResponse = await fetch(`/api/transactions/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const deleteResponse = await deleteTransactionRequest(id);
 
       if (!deleteResponse.ok) {
-        const payload = (await deleteResponse.json().catch(() => ({}))) as { error?: string };
+        const payload = await readApiError(deleteResponse);
         const message = payload.error || "Gagal menghapus transaksi.";
         setTransactionError(message);
         toast.error(message);
         return;
       }
 
-      const listResponse = await fetch("/api/transactions", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (listResponse.ok) {
-        const listPayload = (await listResponse.json().catch(() => ({}))) as {
-          transactions?: Array<{
-            id: string;
-            date: string;
-            roomNumber: string;
-            clientName: string;
-            quantityKg: number | string;
-            pricePerKg: number | string;
-          }>;
-        };
-        const nextTransactions = (listPayload.transactions ?? []).map((transaction) => ({
-          id: transaction.id,
-          date: transaction.date,
-          roomNumber: transaction.roomNumber,
-          clientName: transaction.clientName,
-          quantityKg: Number(transaction.quantityKg),
-          pricePerKg: Number(transaction.pricePerKg),
-        }));
+      const nextTransactions = await fetchTransactionsList();
+      if (nextTransactions) {
         setTransactionState(nextTransactions);
       } else {
         setTransactionError("Transaksi berhasil dihapus, tapi gagal memuat ulang data.");
@@ -642,35 +352,12 @@ export default function ReportPage() {
     }
   };
 
-  const onLogout = async () => {
-    try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch {
-      // no-op: client-side cleanup still runs
-    } finally {
-      clearAuthSession();
-      router.replace("/login");
-    }
-  };
-
   const buildExportRows = () => {
-    return sortedTransactions.map((transaction, index) => {
-      const isFirstDateRow =
-        index === 0 || sortedTransactions[index - 1].date !== transaction.date;
-      return {
-      no: index + 1,
-      tanggal: formatISODateToLongID(transaction.date),
-      jumlahNota: noteCountByDate.get(transaction.id) ?? 0,
-      totalKeseluruhan: isFirstDateRow ? dailySubtotalByDate.get(transaction.date) ?? 0 : "",
-      noKamar: transaction.roomNumber,
-      satuan: transaction.quantityKg,
-      harga: transaction.pricePerKg,
-      totalHarian: getDailyTotal(transaction),
-      keterangan: isFirstDateRow ? transaction.clientName : "",
-    };
+    return buildExportRowsData({
+      sortedTransactions,
+      noteCountByDate,
+      dailySubtotalByDate,
+      getDailyTotal,
     });
   };
 
@@ -849,43 +536,18 @@ export default function ReportPage() {
     try {
       setIsDeletingTransaction(true);
       setTransactionError("");
-      const resetResponse = await fetch("/api/transactions", {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const resetResponse = await resetTransactionsRequest();
 
       if (!resetResponse.ok) {
-        const payload = (await resetResponse.json().catch(() => ({}))) as { error?: string };
+        const payload = await readApiError(resetResponse);
         const message = payload.error || "Gagal reset semua data laporan.";
         setTransactionError(message);
         toast.error(message);
         return;
       }
 
-      const listResponse = await fetch("/api/transactions", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (listResponse.ok) {
-        const listPayload = (await listResponse.json().catch(() => ({}))) as {
-          transactions?: Array<{
-            id: string;
-            date: string;
-            roomNumber: string;
-            clientName: string;
-            quantityKg: number | string;
-            pricePerKg: number | string;
-          }>;
-        };
-        const nextTransactions = (listPayload.transactions ?? []).map((transaction) => ({
-          id: transaction.id,
-          date: transaction.date,
-          roomNumber: transaction.roomNumber,
-          clientName: transaction.clientName,
-          quantityKg: Number(transaction.quantityKg),
-          pricePerKg: Number(transaction.pricePerKg),
-        }));
+      const nextTransactions = await fetchTransactionsList();
+      if (nextTransactions) {
         setTransactionState(nextTransactions);
       } else {
         setTransactionState([]);
@@ -1164,17 +826,20 @@ export default function ReportPage() {
             ref={reportRef}
             className="surface-card print-area min-w-0 p-4 sm:p-6"
           >
-            <div className="no-print border-b border-slate-200 pb-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="no-print rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 sm:p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-700">
+                    Report Controls
+                  </p>
+                  <h2 className="mt-1 text-lg font-semibold text-slate-900 sm:text-xl">
                     Tabel Transaksi Harian
                   </h2>
                   <p className="mt-1 text-xs text-slate-500">
                     Filter berdasarkan rentang tanggal.
                   </p>
                 </div>
-                <div className="grid w-full gap-2 sm:grid-cols-2 lg:w-auto lg:min-w-[420px]">
+                <div className="grid w-full gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:w-auto lg:min-w-[420px]">
                   <CustomDatePicker
                     id="start-date-filter"
                     label="Start Date"
@@ -1189,11 +854,11 @@ export default function ReportPage() {
                   />
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
                 <button
                   type="button"
                   onClick={onResetAll}
-                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-rose-700 px-3 py-2 text-sm font-medium text-white hover:bg-rose-600"
+                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-rose-700 px-3 py-2 text-sm font-medium text-white hover:bg-rose-600"
                 >
                   <FiRefreshCw />
                   Reset Semua
@@ -1201,7 +866,7 @@ export default function ReportPage() {
                 <button
                   type="button"
                   onClick={onPrint}
-                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-600"
+                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-slate-700 px-3 py-2 text-sm font-medium text-white hover:bg-slate-600"
                 >
                   <FiPrinter />
                   Print
@@ -1210,7 +875,7 @@ export default function ReportPage() {
                   type="button"
                   onClick={onSavePdf}
                   disabled={isSavingPdf}
-                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-60"
+                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-500 disabled:opacity-60"
                 >
                   {isSavingPdf && <Spinner size="sm" className="border-slate-200 border-t-white" />}
                   <FiFileText />
@@ -1219,7 +884,7 @@ export default function ReportPage() {
                 <button
                   type="button"
                   onClick={onDownloadCSV}
-                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-600"
+                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-600"
                 >
                   <FiDownload />
                   Download CSV
@@ -1228,7 +893,7 @@ export default function ReportPage() {
                   type="button"
                   onClick={onDownloadXLSX}
                   disabled={isExportingXlsx}
-                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-600 disabled:opacity-60"
+                  className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-600 disabled:opacity-60"
                 >
                   {isExportingXlsx && <Spinner size="sm" className="border-slate-200 border-t-white" />}
                   <FiGrid />
@@ -1245,10 +910,13 @@ export default function ReportPage() {
               )}
             </div>
 
-            <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-              <div className="mb-4 border-b border-slate-200 pb-3">
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="mb-4 flex flex-col gap-2 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-base font-semibold text-slate-900 sm:text-lg">
                   {finalReportTitle}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {sortedTransactions.length} transaksi ditampilkan
                 </p>
               </div>
               <div className="overflow-x-auto rounded-lg">
@@ -1274,13 +942,15 @@ export default function ReportPage() {
 
           <motion.div
             layout
-            className="no-print mt-5 rounded-xl bg-slate-900 px-4 py-3 text-right text-white shadow-md"
+            className="no-print mt-5 rounded-2xl bg-[linear-gradient(145deg,#0f172a,#1e293b)] px-5 py-4 text-right text-white shadow-md"
           >
-            <p className="text-sm">Total Bulanan</p>
-            <p className="text-xl font-semibold">{formatIDR(monthlyTotal)}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">
+              Total Bulanan
+            </p>
+            <p className="mt-1 text-xl font-semibold">{formatIDR(monthlyTotal)}</p>
             </motion.div>
 
-          <div className="no-print mt-6 border-t border-slate-300 pt-5 text-right text-sm text-slate-700">
+          <div className="no-print mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm text-slate-700">
               <p>Nama Client: {reportClientName.trim() || "-"}</p>
               <p>Keterangan: {printKeterangan}</p>
               <p>TTD Pemilik Laundry: {username}</p>
