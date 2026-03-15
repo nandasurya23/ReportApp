@@ -31,7 +31,6 @@ interface ReportTableSectionProps {
   onResetAll: () => void;
   onPrint: () => void;
   onSavePdf: () => void | Promise<void>;
-  onDownloadCSV: () => void;
   onDownloadXLSX: () => void | Promise<void>;
   isSavingPdf: boolean;
   isExportingXlsx: boolean;
@@ -65,7 +64,6 @@ function ReportTableSectionComponent({
   onResetAll,
   onPrint,
   onSavePdf,
-  onDownloadCSV,
   onDownloadXLSX,
   isSavingPdf,
   isExportingXlsx,
@@ -105,7 +103,6 @@ function ReportTableSectionComponent({
         onResetAll={onResetAll}
         onPrint={onPrint}
         onSavePdf={onSavePdf}
-        onDownloadCSV={onDownloadCSV}
         onDownloadXLSX={onDownloadXLSX}
         isSavingPdf={isSavingPdf}
         isExportingXlsx={isExportingXlsx}

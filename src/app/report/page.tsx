@@ -69,6 +69,29 @@ async function loadReportExportService() {
   return import("@/lib/services/report-export");
 }
 
+function getReportPdfFileName(visibleTransactions: LaundryTransaction[]) {
+  if (visibleTransactions.length === 0) {
+    return "laporan.pdf";
+  }
+
+  const timestamps = visibleTransactions
+    .map((transaction) => new Date(transaction.date).getTime())
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+
+  if (timestamps.length === 0) {
+    return "laporan.pdf";
+  }
+
+  const start = new Date(timestamps[0]);
+  const end = new Date(timestamps[timestamps.length - 1]);
+  const month = end
+    .toLocaleDateString("id-ID", { month: "long" })
+    .toLowerCase();
+
+  return `laporan ${start.getDate()} - ${end.getDate()} ${month}.pdf`;
+}
+
 export default function ReportPage() {
   const pdfExportRef = useRef<HTMLDivElement>(null);
   const [username, setUsername] = useState("");
@@ -186,24 +209,6 @@ export default function ReportPage() {
       setEditDraft,
     });
 
-  const onDownloadCSV = useCallback(() => {
-    void (async () => {
-      const { downloadReportCSV } = await loadReportExportService();
-      downloadReportCSV({
-        rows: buildExportRowsData({
-          sortedTransactions,
-          noteCountByDate,
-          dailySubtotalByDate,
-          getDailyTotal,
-        }),
-        printKeterangan,
-        monthlyTotal,
-        username,
-        formatDateWITA,
-      });
-    })();
-  }, [dailySubtotalByDate, monthlyTotal, noteCountByDate, printKeterangan, sortedTransactions, username]);
-
   const onDownloadXLSX = async () => {
     setIsExportingXlsx(true);
     try {
@@ -236,11 +241,15 @@ export default function ReportPage() {
     setIsSavingPdf(true);
     try {
       const { saveReportPDF } = await loadReportExportService();
+      pdfExportRef.current.setAttribute(
+        "data-pdf-file-name",
+        getReportPdfFileName(visibleTransactions),
+      );
       await saveReportPDF(pdfExportRef.current);
     } finally {
       setIsSavingPdf(false);
     }
-  }, []);
+  }, [visibleTransactions]);
 
   const onResetAll = useCallback(() => {
     showResetAllConfirmation(performResetAll);
@@ -321,7 +330,6 @@ export default function ReportPage() {
               onResetAll={onResetAll}
               onPrint={onPrint}
               onSavePdf={onSavePdf}
-              onDownloadCSV={onDownloadCSV}
               onDownloadXLSX={onDownloadXLSX}
               isSavingPdf={isSavingPdf}
               isExportingXlsx={isExportingXlsx}
