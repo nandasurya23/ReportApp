@@ -16,6 +16,25 @@ function getDayKey(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
 
+function isMissingLoginAttemptTableError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const maybeCode = (error as { code?: unknown }).code;
+  return maybeCode === "P2021";
+}
+
+function getLoginAttemptDelegate() {
+  const client = prisma as unknown as {
+    loginAttempt?: {
+      findUnique: (...args: unknown[]) => Promise<unknown>;
+      upsert: (...args: unknown[]) => Promise<unknown>;
+      deleteMany: (...args: unknown[]) => Promise<unknown>;
+    };
+  };
+  return client.loginAttempt;
+}
+
 export async function POST(request: Request) {
   try {
     console.log("[auth/login] step=request-received");
@@ -50,17 +69,27 @@ export async function POST(request: Request) {
     }
 
     const dayKey = getDayKey(new Date());
-    const attempt = await prisma.loginAttempt.findUnique({
-      where: {
-        username_dayKey: {
-          username,
-          dayKey,
-        },
-      },
-      select: {
-        failedCount: true,
-      },
-    });
+    let attempt: { failedCount: number } | null = null;
+    const loginAttemptDelegate = getLoginAttemptDelegate();
+    try {
+      if (loginAttemptDelegate) {
+        attempt = (await loginAttemptDelegate.findUnique({
+          where: {
+            username_dayKey: {
+              username,
+              dayKey,
+            },
+          },
+          select: {
+            failedCount: true,
+          },
+        })) as { failedCount: number } | null;
+      }
+    } catch (error) {
+      if (!isMissingLoginAttemptTableError(error)) {
+        throw error;
+      }
+    }
     if ((attempt?.failedCount ?? 0) >= MAX_FAILED_LOGIN_ATTEMPTS_PER_DAY) {
       return NextResponse.json(
         { error: "Too many failed login attempts. Try again tomorrow." },
@@ -97,36 +126,52 @@ export async function POST(request: Request) {
     });
 
     if (!user || !passwordMatched) {
-      await prisma.loginAttempt.upsert({
-        where: {
-          username_dayKey: {
-            username,
-            dayKey,
-          },
-        },
-        update: {
-          failedCount: {
-            increment: 1,
-          },
-        },
-        create: {
-          username,
-          dayKey,
-          failedCount: 1,
-        },
-      });
+      try {
+        if (loginAttemptDelegate) {
+          await loginAttemptDelegate.upsert({
+            where: {
+              username_dayKey: {
+                username,
+                dayKey,
+              },
+            },
+            update: {
+              failedCount: {
+                increment: 1,
+              },
+            },
+            create: {
+              username,
+              dayKey,
+              failedCount: 1,
+            },
+          });
+        }
+      } catch (error) {
+        if (!isMissingLoginAttemptTableError(error)) {
+          throw error;
+        }
+      }
       return NextResponse.json(
         { error: "Invalid username or password." },
         { status: 401 },
       );
     }
 
-    await prisma.loginAttempt.deleteMany({
-      where: {
-        username,
-        dayKey,
-      },
-    });
+    try {
+      if (loginAttemptDelegate) {
+        await loginAttemptDelegate.deleteMany({
+          where: {
+            username,
+            dayKey,
+          },
+        });
+      }
+    } catch (error) {
+      if (!isMissingLoginAttemptTableError(error)) {
+        throw error;
+      }
+    }
 
     const token = createSessionToken();
     const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000);

@@ -94,6 +94,7 @@ export default function LoginPage() {
                 <input
                   id="username"
                   type="text"
+                  autoComplete="username"
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
                   className="input-field input-with-icon"
@@ -112,6 +113,7 @@ export default function LoginPage() {
                 <input
                   id="password"
                   type="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   className="input-field input-with-icon"
