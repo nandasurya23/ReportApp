@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { FiLock, FiLogIn, FiUser } from "react-icons/fi";
 
 import { Spinner } from "@/components/ui/spinner";
-import { AUTH_COOKIE_NAME } from "@/lib/constants/auth";
 import { setAuthSession } from "@/lib/storage/local-storage";
 
 export default function LoginPage() {
@@ -16,21 +15,47 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!username.trim() || !password.trim()) {
       setError("Username dan password wajib diisi.");
       return;
     }
+    setError("");
     setIsSubmitting(true);
 
-    setAuthSession({
-      username: username.trim(),
-      loggedInAt: new Date().toISOString(),
-    });
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: username.trim(),
+          password: password.trim(),
+        }),
+      });
 
-    document.cookie = `${AUTH_COOKIE_NAME}=1; path=/; max-age=86400; samesite=lax`;
-    router.push("/report");
+      const payload = (await response.json().catch(() => ({}))) as {
+        user?: { username?: string };
+        error?: string;
+      };
+
+      if (!response.ok || !payload.user?.username) {
+        setError(payload.error || "Login gagal. Cek kembali kredensial.");
+        return;
+      }
+
+      setAuthSession({
+        username: payload.user.username,
+        loggedInAt: new Date().toISOString(),
+      });
+      router.push("/report");
+    } catch {
+      setError("Login gagal. Coba lagi.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
