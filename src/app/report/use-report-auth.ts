@@ -12,7 +12,7 @@ import {
   getAuthMePayload,
   getAuthMeRequest,
   postAuthLogoutRequest,
-} from "@/lib/services/report-api";
+} from "@/lib/services/auth/report-api";
 import { LaundryTransaction } from "@/types/laundry";
 
 const INACTIVITY_LOGOUT_MS = 60 * 60 * 1000;

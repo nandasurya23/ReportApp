@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Laundry Report App",
-  description: "Frontend MVP laporan laundry bulanan",
+  description: "Laundry report app",
 };
 
 export default function RootLayout({
