@@ -60,34 +60,34 @@ export function TransactionsTable({
       </colgroup>
       <thead>
         <tr className="bg-slate-200 text-left text-slate-900">
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
+          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
             Nomer
           </th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
+          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
             Tanggal
           </th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
             Jumlah Nota
           </th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
             No Kamar
           </th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
             Satuan
           </th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
             Harga
           </th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">
+          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">
             Harga Total Harian
           </th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">
+          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">
             Total Keseluruhan
           </th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
+          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
             Keterangan
           </th>
-          <th className="border border-slate-300 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
             Aksi
           </th>
         </tr>

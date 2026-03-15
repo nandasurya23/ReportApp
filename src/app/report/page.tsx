@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Workbook } from "exceljs";
 import { motion } from "framer-motion";
 import html2canvas from "html2canvas";
@@ -86,6 +86,7 @@ export default function ReportPage() {
   const [formRoomNumber, setFormRoomNumber] = useState("");
   const [reportClientName, setReportClientName] = useState("");
   const [reportKeterangan, setReportKeterangan] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [formQuantityKg, setFormQuantityKg] = useState("1");
   const [formPriceInput, setFormPriceInput] = useState("");
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
@@ -140,6 +141,45 @@ export default function ReportPage() {
     formDate,
     reportKeterangan,
   });
+
+  const visibleTransactions = useMemo(() => {
+    const keyword = searchQuery.trim().toLowerCase();
+    if (!keyword) {
+      return sortedTransactions;
+    }
+    return sortedTransactions.filter((transaction) => {
+      const tanggal = formatISODateToLongID(transaction.date).toLowerCase();
+      return (
+        transaction.roomNumber.toLowerCase().includes(keyword) ||
+        transaction.clientName.toLowerCase().includes(keyword) ||
+        String(transaction.quantityKg).toLowerCase().includes(keyword) ||
+        String(transaction.pricePerKg).toLowerCase().includes(keyword) ||
+        tanggal.includes(keyword)
+      );
+    });
+  }, [searchQuery, sortedTransactions]);
+
+  const visibleDailySubtotalByDate = useMemo(() => {
+    const subtotalMap = new Map<string, number>();
+    visibleTransactions.forEach((transaction) => {
+      subtotalMap.set(
+        transaction.date,
+        (subtotalMap.get(transaction.date) ?? 0) + getDailyTotal(transaction),
+      );
+    });
+    return subtotalMap;
+  }, [visibleTransactions]);
+
+  const visibleNoteCountByDate = useMemo(() => {
+    const dateCounter = new Map<string, number>();
+    const noteMap = new Map<string, number>();
+    visibleTransactions.forEach((transaction) => {
+      const next = (dateCounter.get(transaction.date) ?? 0) + 1;
+      dateCounter.set(transaction.date, next);
+      noteMap.set(transaction.id, next);
+    });
+    return noteMap;
+  }, [visibleTransactions]);
 
   const validateInput = (input: {
     date: string;
@@ -619,25 +659,31 @@ export default function ReportPage() {
           transition={{ duration: 0.35 }}
           className="surface-card no-print flex flex-col gap-4 p-4 sm:p-5 md:flex-row md:items-center md:justify-between"
         >
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">
               Laundry Dashboard
             </p>
-            <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">
+            <h1 className="mt-0.5 text-xl font-semibold text-slate-900 sm:text-2xl">
               Monthly Report Center
             </h1>
-            <p className="text-sm text-slate-600">
-              Login sebagai: {username}
-              {reportClientName.trim() ? ` | Client: ${reportClientName.trim()}` : ""}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-medium text-slate-700">
+                User: {username}
+              </span>
+              {reportClientName.trim() && (
+                <span className="rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 font-medium text-cyan-700">
+                  Client: {reportClientName.trim()}
+                </span>
+              )}
+            </div>
           </div>
           <button
             type="button"
             onClick={onLogout}
-            className="btn btn-primary flex w-full items-center justify-center gap-2 px-4 py-2 text-sm md:w-auto"
+            className="btn flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 md:w-auto"
           >
             <FiLogOut className="text-base" />
-            Logout
+            Keluar
           </button>
         </motion.header>
 
@@ -826,7 +872,7 @@ export default function ReportPage() {
             ref={reportRef}
             className="surface-card print-area min-w-0 p-4 sm:p-6"
           >
-            <div className="no-print rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 sm:p-5">
+            <div className="no-print rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,#f8fafc,#f1f5f9)] p-4 sm:p-5">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-700">
@@ -852,6 +898,32 @@ export default function ReportPage() {
                     value={endDate}
                     onChange={setEndDate}
                   />
+                </div>
+              </div>
+              <div className="mt-3 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-end">
+                <div className="grow">
+                  <label
+                    htmlFor="table-search"
+                    className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600"
+                  >
+                    Quick Search
+                  </label>
+                  <input
+                    id="table-search"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Cari tanggal, kamar, client, qty, harga..."
+                    className="input-field w-full"
+                  />
+                </div>
+                <div className="flex shrink-0 items-center gap-2 text-xs">
+                  <span className="rounded-full bg-cyan-100 px-2.5 py-1 font-medium text-cyan-700">
+                    {visibleTransactions.length} tampil
+                  </span>
+                  <span className="rounded-full bg-slate-200 px-2.5 py-1 font-medium text-slate-700">
+                    {sortedTransactions.length} total
+                  </span>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
@@ -900,8 +972,14 @@ export default function ReportPage() {
                   {isExportingXlsx ? "Exporting..." : "Download XLSX"}
                 </button>
               </div>
+              <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                Actions
+              </p>
               {isLoadingTransactions && (
-                <p className="mt-3 text-xs text-slate-600">Memuat transaksi dari server...</p>
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+                  <Spinner size="sm" />
+                  Memuat transaksi dari server...
+                </div>
               )}
               {transactionError && (
                 <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -916,33 +994,54 @@ export default function ReportPage() {
                   {finalReportTitle}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {sortedTransactions.length} transaksi ditampilkan
+                  {visibleTransactions.length} dari {sortedTransactions.length} transaksi
                 </p>
               </div>
-              <div className="overflow-x-auto rounded-lg">
-              {sortedTransactions.length === 0 ? (
-                <EmptyState />
-              ) : (
-              <TransactionsTable
-                filteredTransactions={sortedTransactions}
-                dailySubtotalByDate={dailySubtotalByDate}
-                noteCountByDate={noteCountByDate}
-                monthlyTotal={monthlyTotal}
-                editDraft={editDraft}
-                setEditDraft={setEditDraft}
-                startInlineEdit={startInlineEdit}
+              <div className="relative overflow-hidden rounded-lg border border-slate-200">
+                <div className="relative max-h-[66vh] overflow-auto overscroll-contain">
+                  {isLoadingTransactions && visibleTransactions.length === 0 ? (
+                    <div className="space-y-2 p-3">
+                      <div className="h-10 animate-pulse rounded-md bg-slate-200/80" />
+                      <div className="h-10 animate-pulse rounded-md bg-slate-100" />
+                      <div className="h-10 animate-pulse rounded-md bg-slate-100" />
+                      <div className="h-10 animate-pulse rounded-md bg-slate-100" />
+                    </div>
+                  ) : visibleTransactions.length === 0 ? (
+                    <div className="bg-white p-4 sm:p-6">
+                      <EmptyState />
+                    </div>
+                  ) : (
+                    <div className="[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:shadow-[inset_0_-1px_0_0_rgba(148,163,184,0.35)]">
+                      <TransactionsTable
+                        filteredTransactions={visibleTransactions}
+                        dailySubtotalByDate={visibleDailySubtotalByDate}
+                        noteCountByDate={visibleNoteCountByDate}
+                        monthlyTotal={monthlyTotal}
+                        editDraft={editDraft}
+                        setEditDraft={setEditDraft}
+                        startInlineEdit={startInlineEdit}
                   onSaveInlineEdit={onSaveInlineEdit}
                   onDeleteRow={onDeleteRow}
                   parsePriceInput={parsePriceInput}
                   formatPriceInput={formatPriceInput}
-                />
-              )}
+                      />
+                    </div>
+                  )}
+                  {isLoadingTransactions && visibleTransactions.length > 0 && (
+                    <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center bg-white/45 pt-6 backdrop-blur-[1px]">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm">
+                        <Spinner size="sm" />
+                        Memuat data...
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
           <motion.div
             layout
-            className="no-print mt-5 rounded-2xl bg-[linear-gradient(145deg,#0f172a,#1e293b)] px-5 py-4 text-right text-white shadow-md"
+            className="no-print mt-5 rounded-2xl border border-slate-800/50 bg-[linear-gradient(145deg,#0f172a,#1e293b)] px-5 py-4 text-right text-white shadow-md"
           >
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">
               Total Bulanan
@@ -950,7 +1049,7 @@ export default function ReportPage() {
             <p className="mt-1 text-xl font-semibold">{formatIDR(monthlyTotal)}</p>
             </motion.div>
 
-          <div className="no-print mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-right text-sm text-slate-700">
+          <div className="no-print mt-6 rounded-xl border border-slate-200 bg-white px-4 py-3 text-right text-sm text-slate-700 shadow-sm">
               <p>Nama Client: {reportClientName.trim() || "-"}</p>
               <p>Keterangan: {printKeterangan}</p>
               <p>TTD Pemilik Laundry: {username}</p>
