@@ -25,6 +25,18 @@ export function parseDate(value: string): Date | null {
   return date;
 }
 
+export function isValidOneDecimalQuantity(value: number): boolean {
+  if (!Number.isFinite(value) || value <= 0) {
+    return false;
+  }
+  const scaled = Math.round(value * 10);
+  return Math.abs(value * 10 - scaled) < 1e-9;
+}
+
+export function normalizeOneDecimalQuantity(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
 export function toTransactionResponse(transaction: {
   id: string;
   date: Date;

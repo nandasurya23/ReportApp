@@ -130,7 +130,7 @@ export function ReportTransactionForm({
                 inputMode="decimal"
                 value={formQuantityKg}
                 onChange={(event) => {
-                  const nextValue = event.target.value.replace(",", ".");
+                  const nextValue = event.target.value.trim();
                   if (nextValue === "") {
                     setFormQuantityKg("");
                     return;

@@ -6,7 +6,7 @@ import { FiEdit2, FiSave, FiTrash2, FiX } from "react-icons/fi";
 
 import { formatIDR } from "@/lib/utils/currency";
 import { formatISODateToLongID } from "@/lib/utils/date";
-import { getDailyTotal } from "@/lib/utils/laundry";
+import { getDailyTotal, getDailyTotalFromValues } from "@/lib/utils/laundry";
 import { LaundryTransaction } from "@/types/laundry";
 
 interface EditDraft {
@@ -64,7 +64,10 @@ function TransactionRowComponent({
   const isEditing = editDraft?.id === transaction.id;
   const showDateGroup = isFirstDateRow || isEditing;
   const rowTotal = isEditing
-    ? Number(editDraft.quantityKg || "0") * parsePriceInput(editDraft.priceInput)
+    ? getDailyTotalFromValues(
+      Number(editDraft.quantityKg || "0"),
+      parsePriceInput(editDraft.priceInput),
+    )
     : getDailyTotal(transaction);
 
   const handleStartEdit = useCallback(() => {
@@ -127,7 +130,7 @@ function TransactionRowComponent({
                 if (!prev) {
                   return prev;
                 }
-                const nextValue = event.target.value.replace(",", ".");
+                const nextValue = event.target.value.trim();
                 if (nextValue !== "" && !/^\d*(\.\d?)?$/.test(nextValue)) {
                   return prev;
                 }

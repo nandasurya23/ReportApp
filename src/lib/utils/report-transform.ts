@@ -58,9 +58,12 @@ export function parsePriceInput(raw: string): number {
 }
 
 export function parseQuantityInput(raw: string): number {
-  const normalized = raw.replace(",", ".").trim();
+  const normalized = raw.trim();
   if (!normalized) {
     return 0;
+  }
+  if (!/^\d+(\.\d)?$/.test(normalized)) {
+    return Number.NaN;
   }
   return Number(normalized);
 }
