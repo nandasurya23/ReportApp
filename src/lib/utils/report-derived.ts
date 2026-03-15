@@ -1,4 +1,5 @@
 import { getDailyTotal, getMonthlyTotal } from "@/lib/utils/laundry";
+import { formatISODateToLongID } from "@/lib/utils/date";
 import { LaundryTransaction } from "@/types/laundry";
 
 export function filterTransactions(
@@ -85,4 +86,24 @@ export function getPrintKeterangan(reportKeterangan: string): string {
 
 export function getMonthlyTotalFromTransactions(sortedTransactions: LaundryTransaction[]): number {
   return getMonthlyTotal(sortedTransactions);
+}
+
+export function filterTransactionsBySearch(
+  transactions: LaundryTransaction[],
+  searchQuery: string,
+): LaundryTransaction[] {
+  const keyword = searchQuery.trim().toLowerCase();
+  if (!keyword) {
+    return transactions;
+  }
+  return transactions.filter((transaction) => {
+    const tanggal = formatISODateToLongID(transaction.date).toLowerCase();
+    return (
+      transaction.roomNumber.toLowerCase().includes(keyword) ||
+      transaction.clientName.toLowerCase().includes(keyword) ||
+      String(transaction.quantityKg).toLowerCase().includes(keyword) ||
+      String(transaction.pricePerKg).toLowerCase().includes(keyword) ||
+      tanggal.includes(keyword)
+    );
+  });
 }

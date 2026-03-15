@@ -290,7 +290,7 @@ export function TransactionsTable({
             </p>
           </td>
           <td className="border border-slate-300 px-3 py-2 text-right align-bottom">
-            <p className="break-words text-sm font-bold leading-tight text-slate-900">
+            <p className="wrap-break-word text-sm font-bold leading-tight text-slate-900">
               {formatIDR(monthlyTotal)}
             </p>
           </td>
