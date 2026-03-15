@@ -4,8 +4,10 @@ import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/session";
 import {
   compactText,
+  isValidOneDecimalQuantity,
   MAX_CLIENT_NAME_LENGTH,
   MAX_ROOM_NUMBER_LENGTH,
+  normalizeOneDecimalQuantity,
   parseDate,
   TransactionInputBody,
   toTransactionResponse,
@@ -90,10 +92,10 @@ export async function PATCH(
 
     if (body.quantityKg !== undefined) {
       const quantityKg = Number(body.quantityKg);
-      if (!Number.isFinite(quantityKg) || quantityKg <= 0) {
-        return NextResponse.json({ error: "quantityKg must be > 0." }, { status: 400 });
+      if (!isValidOneDecimalQuantity(quantityKg)) {
+        return NextResponse.json({ error: "quantityKg must be > 0 with max 1 decimal." }, { status: 400 });
       }
-      data.quantityKg = Number(quantityKg.toFixed(2));
+      data.quantityKg = normalizeOneDecimalQuantity(quantityKg);
     }
 
     if (body.pricePerKg !== undefined) {

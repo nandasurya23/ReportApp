@@ -1,3 +1,5 @@
+import { isValidQuantityOneDecimal } from "@/lib/utils/laundry";
+
 export function validateTransactionInput(input: {
   date: string;
   roomNumber: string;
@@ -21,12 +23,8 @@ export function validateTransactionInput(input: {
   if (input.quantityKg <= 0) {
     return "Jumlah laundry harus lebih dari 0.";
   }
-  if (!Number.isFinite(input.quantityKg)) {
+  if (!isValidQuantityOneDecimal(input.quantityKg)) {
     return "Satuan tidak valid.";
-  }
-  const halfStep = input.quantityKg * 2;
-  if (!Number.isInteger(halfStep)) {
-    return "Satuan hanya boleh kelipatan 0.5 KG.";
   }
   if (input.pricePerKg < 0) {
     return "Harga per KG tidak boleh negatif.";
@@ -35,9 +33,12 @@ export function validateTransactionInput(input: {
 }
 
 export function parseQuantityInput(raw: string): number {
-  const normalized = raw.replace(",", ".").trim();
+  const normalized = raw.trim();
   if (!normalized) {
     return 0;
+  }
+  if (!/^\d+(\.\d)?$/.test(normalized)) {
+    return Number.NaN;
   }
   return Number(normalized);
 }
