@@ -22,50 +22,21 @@ import {
   FiUsers,
 } from "react-icons/fi";
 import { CustomDatePicker } from "@/components/report/custom-date-picker";
-import { CustomSelect } from "@/components/report/custom-select";
 import { EmptyState } from "@/components/report/empty-state";
 import { TransactionsTable } from "@/components/report/transactions-table";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 
-import { AUTH_COOKIE_NAME } from "@/lib/constants/auth";
 import {
   clearAuthSession,
-  getAuthSession,
   getReportPreferences,
-  getTransactions,
+  setAuthSession,
   setReportPreferences,
-  setTransactions,
 } from "@/lib/storage/local-storage";
 import { formatIDR } from "@/lib/utils/currency";
-import {
-  formatDateWITA,
-  formatISODateToLongID,
-  getWeekCountInMonth,
-  getWeekOfMonth,
-} from "@/lib/utils/date";
-import {
-  createTransaction,
-  getDailyTotal,
-  getMonthlyTotal,
-  getMonthlyTransactions,
-} from "@/lib/utils/laundry";
+import { formatDateWITA, formatISODateToLongID } from "@/lib/utils/date";
+import { getDailyTotal, getMonthlyTotal } from "@/lib/utils/laundry";
 import { LaundryTransaction } from "@/types/laundry";
-
-const MONTH_OPTIONS = [
-  { value: 1, label: "Januari" },
-  { value: 2, label: "Februari" },
-  { value: 3, label: "Maret" },
-  { value: 4, label: "April" },
-  { value: 5, label: "Mei" },
-  { value: 6, label: "Juni" },
-  { value: 7, label: "Juli" },
-  { value: 8, label: "Agustus" },
-  { value: 9, label: "September" },
-  { value: 10, label: "Oktober" },
-  { value: 11, label: "November" },
-  { value: 12, label: "Desember" },
-] as const;
 
 interface EditDraft {
   id: string;
@@ -109,14 +80,15 @@ function parseQuantityInput(raw: string): number {
 }
 
 export default function ReportPage() {
+  const INACTIVITY_LOGOUT_MS = 60 * 60 * 1000;
   const router = useRouter();
   const reportRef = useRef<HTMLDivElement>(null);
   const pdfExportRef = useRef<HTMLDivElement>(null);
+  const inactivityTimeoutRef = useRef<number | null>(null);
   const [username, setUsername] = useState("");
   const [transactions, setTransactionState] = useState<LaundryTransaction[]>([]);
-  const [filterMonth, setFilterMonth] = useState<number>(1);
-  const [filterYear, setFilterYear] = useState<number>(2000);
-  const [filterWeek, setFilterWeek] = useState<number | null>(null);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
   const [formRoomNumber, setFormRoomNumber] = useState("");
   const [reportClientName, setReportClientName] = useState("");
@@ -125,27 +97,110 @@ export default function ReportPage() {
   const [formPriceInput, setFormPriceInput] = useState("");
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [error, setError] = useState("");
+  const [transactionError, setTransactionError] = useState("");
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
+  const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
+  const [isUpdatingTransaction, setIsUpdatingTransaction] = useState(false);
+  const [isDeletingTransaction, setIsDeletingTransaction] = useState(false);
   const [isSavingPdf, setIsSavingPdf] = useState(false);
   const [isExportingXlsx, setIsExportingXlsx] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    const session = getAuthSession();
-    if (!session?.username) {
-      router.replace("/login");
-      return;
-    }
+    let cancelled = false;
 
-    const now = new Date();
-    const preferences = getReportPreferences();
-    setUsername(session.username);
-    setTransactionState(getTransactions());
-    setReportClientName(preferences.clientName);
-    setReportKeterangan(preferences.keterangan);
-    setFilterMonth(preferences.month ?? now.getMonth() + 1);
-    setFilterYear(preferences.year ?? now.getFullYear());
-    setFilterWeek(preferences.week ?? null);
-    setIsInitializing(false);
+    const loadTransactionsFromBackend = async (): Promise<LaundryTransaction[] | null> => {
+      setIsLoadingTransactions(true);
+      setTransactionError("");
+      try {
+        const transactionResponse = await fetch("/api/transactions", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!transactionResponse.ok) {
+          setTransactionError("Gagal memuat transaksi dari server.");
+          return null;
+        }
+        const transactionPayload = (await transactionResponse.json().catch(() => ({}))) as {
+          transactions?: Array<{
+            id: string;
+            date: string;
+            roomNumber: string;
+            clientName: string;
+            quantityKg: number | string;
+            pricePerKg: number | string;
+          }>;
+        };
+        return (transactionPayload.transactions ?? []).map((transaction) => ({
+          id: transaction.id,
+          date: transaction.date,
+          roomNumber: transaction.roomNumber,
+          clientName: transaction.clientName,
+          quantityKg: Number(transaction.quantityKg),
+          pricePerKg: Number(transaction.pricePerKg),
+        }));
+      } catch {
+        setTransactionError("Gagal memuat transaksi dari server.");
+        return null;
+      } finally {
+        setIsLoadingTransactions(false);
+      }
+    };
+
+    const bootstrap = async () => {
+      try {
+        const response = await fetch("/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+        });
+
+        const payload = (await response.json().catch(() => ({}))) as {
+          user?: { username?: string };
+        };
+
+        if (!response.ok || !payload.user?.username) {
+          clearAuthSession();
+          if (!cancelled) {
+            router.replace("/login");
+          }
+          return;
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setAuthSession({
+          username: payload.user.username,
+          loggedInAt: new Date().toISOString(),
+        });
+        const preferences = getReportPreferences();
+        const backendTransactions = await loadTransactionsFromBackend();
+        setUsername(payload.user.username);
+        const nextTransactions = backendTransactions ?? [];
+        setTransactionState(nextTransactions);
+        setReportClientName(preferences.clientName);
+        setReportKeterangan(preferences.keterangan);
+        setStartDate(preferences.startDate ?? "");
+        setEndDate(preferences.endDate ?? "");
+      } catch {
+        clearAuthSession();
+        if (!cancelled) {
+          router.replace("/login");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsInitializing(false);
+        }
+      }
+    };
+
+    void bootstrap();
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   useEffect(() => {
@@ -155,32 +210,82 @@ export default function ReportPage() {
     setReportPreferences({
       clientName: reportClientName,
       keterangan: reportKeterangan,
-      month: filterMonth,
-      year: filterYear,
-      week: filterWeek,
+      startDate: startDate || null,
+      endDate: endDate || null,
     });
-  }, [reportClientName, reportKeterangan, filterMonth, filterYear, filterWeek, isInitializing]);
+  }, [reportClientName, reportKeterangan, startDate, endDate, isInitializing]);
 
-  const persistTransactions = (nextTransactions: LaundryTransaction[]) => {
-    setTransactionState(nextTransactions);
-    setTransactions(nextTransactions);
-  };
+  useEffect(() => {
+    if (isInitializing) {
+      return;
+    }
 
-  const monthlyTransactions = useMemo(() => {
-    return getMonthlyTransactions(transactions, {
-      month: filterMonth,
-      year: filterYear,
+    let isLoggingOut = false;
+    const clearTimer = () => {
+      if (inactivityTimeoutRef.current !== null) {
+        window.clearTimeout(inactivityTimeoutRef.current);
+      }
+      inactivityTimeoutRef.current = null;
+    };
+
+    const logoutForInactivity = async () => {
+      if (isLoggingOut) {
+        return;
+      }
+      isLoggingOut = true;
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch {
+        // no-op: local cleanup still runs
+      } finally {
+        clearAuthSession();
+        router.replace("/login");
+      }
+    };
+
+    const resetInactivityTimer = () => {
+      clearTimer();
+      inactivityTimeoutRef.current = window.setTimeout(() => {
+        void logoutForInactivity();
+      }, INACTIVITY_LOGOUT_MS);
+    };
+
+    const events: Array<keyof WindowEventMap> = [
+      "mousemove",
+      "mousedown",
+      "keydown",
+      "scroll",
+      "touchstart",
+      "focus",
+    ];
+    events.forEach((eventName) => {
+      window.addEventListener(eventName, resetInactivityTimer, { passive: true });
     });
-  }, [transactions, filterMonth, filterYear]);
+
+    resetInactivityTimer();
+
+    return () => {
+      clearTimer();
+      events.forEach((eventName) => {
+        window.removeEventListener(eventName, resetInactivityTimer);
+      });
+    };
+  }, [isInitializing, router]);
 
   const filteredTransactions = useMemo(() => {
-    if (!filterWeek) {
-      return monthlyTransactions;
-    }
-    return monthlyTransactions.filter(
-      (transaction) => getWeekOfMonth(transaction.date) === filterWeek,
-    );
-  }, [monthlyTransactions, filterWeek]);
+    return transactions.filter((transaction) => {
+      if (startDate && transaction.date < startDate) {
+        return false;
+      }
+      if (endDate && transaction.date > endDate) {
+        return false;
+      }
+      return true;
+    });
+  }, [transactions, startDate, endDate]);
 
   const sortedTransactions = useMemo(() => {
     return [...filteredTransactions].sort((a, b) => {
@@ -234,35 +339,13 @@ export default function ReportPage() {
     return noteMap;
   }, [sortedTransactions]);
 
-  const yearOptions = useMemo(() => {
-    const availableYears = new Set<number>([filterYear]);
-    transactions.forEach((transaction) => {
-      const year = Number(transaction.date.split("-")[0]);
-      if (!Number.isNaN(year)) {
-        availableYears.add(year);
-      }
-    });
-    return Array.from(availableYears).sort((a, b) => b - a);
-  }, [transactions, filterYear]);
-
-  const weekOptions = useMemo(() => {
-    const daysInMonth = new Date(filterYear, filterMonth, 0).getDate();
-    const totalWeekInMonth = getWeekCountInMonth(filterYear, filterMonth);
-    const options: Array<{ value: string; label: string }> = [
-      { value: "all", label: "Semua Minggu" },
-    ];
-    for (let week = 1; week <= totalWeekInMonth; week += 1) {
-      const startDay = (week - 1) * 7 + 1;
-      const endDay = Math.min(week * 7, daysInMonth);
-      options.push({ value: String(week), label: `${startDay} - ${endDay}` });
-    }
-    return options;
-  }, [filterYear, filterMonth]);
-
   const printKeterangan = reportKeterangan.trim() || "-";
-  const autoReportTitle = `Laporan ${reportClientName.trim() || "Nama Client"} bulan ${
-    MONTH_OPTIONS.find((m) => m.value === filterMonth)?.label ?? ""
-  } ${filterYear}`;
+  const activeDateContext = startDate || endDate || formDate;
+  const activeDate = new Date(`${activeDateContext}T00:00:00`);
+  const activeMonthYear = Number.isNaN(activeDate.getTime())
+    ? new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(new Date())
+    : new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(activeDate);
+  const autoReportTitle = `Laporan ${reportClientName.trim() || "Nama Client"} - ${activeMonthYear}`;
   const finalReportTitle = autoReportTitle;
 
   const validateInput = (input: {
@@ -300,11 +383,13 @@ export default function ReportPage() {
     return "";
   };
 
-  const onSubmitAdd = (event: FormEvent<HTMLFormElement>) => {
+  const onSubmitAdd = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isCreatingTransaction) {
+      return;
+    }
 
     const keterangan = reportKeterangan.trim();
-    const normalizedRoomNumber = formRoomNumber.trim().toLowerCase();
     const quantityKg = parseQuantityInput(formQuantityKg);
     const pricePerKg = parsePriceInput(formPriceInput);
     const message = validateInput({
@@ -320,47 +405,75 @@ export default function ReportPage() {
       return;
     }
 
-    const existingIndex = transactions.findIndex((transaction) => {
-      return (
-        transaction.date === formDate &&
-        transaction.roomNumber.trim().toLowerCase() === normalizedRoomNumber
-      );
-    });
-
-    let nextTransactions: LaundryTransaction[];
-    if (existingIndex >= 0) {
-      nextTransactions = transactions.map((transaction, index) => {
-        if (index !== existingIndex) {
-          return transaction;
-        }
-        return {
-          ...transaction,
-          quantityKg: transaction.quantityKg + quantityKg,
-          pricePerKg,
+    try {
+      setIsCreatingTransaction(true);
+      setTransactionError("");
+      const createResponse = await fetch("/api/transactions", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          date: formDate,
+          roomNumber: formRoomNumber.trim(),
           clientName: keterangan,
-        };
+          quantityKg,
+          pricePerKg,
+        }),
       });
-    } else {
-      const newTransaction = createTransaction({
-        date: formDate,
-        roomNumber: formRoomNumber,
-        clientName: keterangan,
-        quantityKg,
-        pricePerKg,
-      });
-      nextTransactions = [newTransaction, ...transactions];
-    }
 
-    persistTransactions(nextTransactions);
-    setFormDate(new Date().toISOString().slice(0, 10));
-    setFormRoomNumber("");
-    setFormQuantityKg("1");
-    setFormPriceInput("");
-    setError("");
-    if (existingIndex >= 0) {
-      toast.success("Transaksi kamar yang sama berhasil digabung.");
-    } else {
+      if (!createResponse.ok) {
+        const payload = (await createResponse.json().catch(() => ({}))) as { error?: string };
+        const message = payload.error || "Gagal menambahkan transaksi.";
+        setError(message);
+        setTransactionError(message);
+        toast.error(message);
+        return;
+      }
+
+      const listResponse = await fetch("/api/transactions", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (listResponse.ok) {
+        const listPayload = (await listResponse.json().catch(() => ({}))) as {
+          transactions?: Array<{
+            id: string;
+            date: string;
+            roomNumber: string;
+            clientName: string;
+            quantityKg: number | string;
+            pricePerKg: number | string;
+          }>;
+        };
+        const nextTransactions = (listPayload.transactions ?? []).map((transaction) => ({
+          id: transaction.id,
+          date: transaction.date,
+          roomNumber: transaction.roomNumber,
+          clientName: transaction.clientName,
+          quantityKg: Number(transaction.quantityKg),
+          pricePerKg: Number(transaction.pricePerKg),
+        }));
+        setTransactionState(nextTransactions);
+      } else {
+        setTransactionError("Transaksi berhasil ditambah, tapi gagal memuat ulang data.");
+      }
+
+      setFormDate(new Date().toISOString().slice(0, 10));
+      setFormRoomNumber("");
+      setFormQuantityKg("1");
+      setFormPriceInput("");
+      setError("");
       toast.success("Transaksi baru berhasil ditambahkan.");
+    } catch {
+      const message = "Gagal menambahkan transaksi.";
+      setError(message);
+      setTransactionError(message);
+      toast.error(message);
+    } finally {
+      setIsCreatingTransaction(false);
     }
   };
 
@@ -376,8 +489,11 @@ export default function ReportPage() {
     setError("");
   };
 
-  const onSaveInlineEdit = () => {
+  const onSaveInlineEdit = async () => {
     if (!editDraft) {
+      return;
+    }
+    if (isUpdatingTransaction) {
       return;
     }
 
@@ -396,39 +512,148 @@ export default function ReportPage() {
       return;
     }
 
-    const nextTransactions = transactions.map((transaction) => {
-      if (transaction.id !== editDraft.id) {
-        return transaction;
+    try {
+      setIsUpdatingTransaction(true);
+      setTransactionError("");
+      const updateResponse = await fetch(`/api/transactions/${editDraft.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          date: editDraft.date,
+          roomNumber: editDraft.roomNumber.trim(),
+          clientName: editDraft.clientName.trim(),
+          quantityKg,
+          pricePerKg,
+        }),
+      });
+
+      if (!updateResponse.ok) {
+        const payload = (await updateResponse.json().catch(() => ({}))) as { error?: string };
+        const message = payload.error || "Gagal memperbarui transaksi.";
+        setError(message);
+        setTransactionError(message);
+        toast.error(message);
+        return;
       }
-      return {
-        ...transaction,
-        date: editDraft.date,
-        roomNumber: editDraft.roomNumber.trim(),
-        clientName: editDraft.clientName.trim(),
-        quantityKg,
-        pricePerKg,
-      };
-    });
 
-    persistTransactions(nextTransactions);
-    setEditDraft(null);
-    setError("");
-    toast.success("Perubahan transaksi berhasil disimpan.");
-  };
+      const listResponse = await fetch("/api/transactions", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (listResponse.ok) {
+        const listPayload = (await listResponse.json().catch(() => ({}))) as {
+          transactions?: Array<{
+            id: string;
+            date: string;
+            roomNumber: string;
+            clientName: string;
+            quantityKg: number | string;
+            pricePerKg: number | string;
+          }>;
+        };
+        const nextTransactions = (listPayload.transactions ?? []).map((transaction) => ({
+          id: transaction.id,
+          date: transaction.date,
+          roomNumber: transaction.roomNumber,
+          clientName: transaction.clientName,
+          quantityKg: Number(transaction.quantityKg),
+          pricePerKg: Number(transaction.pricePerKg),
+        }));
+        setTransactionState(nextTransactions);
+      } else {
+        setTransactionError("Transaksi berhasil diupdate, tapi gagal memuat ulang data.");
+      }
 
-  const onDeleteRow = (id: string) => {
-    const nextTransactions = transactions.filter((transaction) => transaction.id !== id);
-    persistTransactions(nextTransactions);
-    if (editDraft?.id === id) {
       setEditDraft(null);
+      setError("");
+      toast.success("Perubahan transaksi berhasil disimpan.");
+    } catch {
+      const message = "Gagal memperbarui transaksi.";
+      setError(message);
+      setTransactionError(message);
+      toast.error(message);
+    } finally {
+      setIsUpdatingTransaction(false);
     }
-    toast.success("Transaksi berhasil dihapus.");
   };
 
-  const onLogout = () => {
-    clearAuthSession();
-    document.cookie = `${AUTH_COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
-    router.replace("/login");
+  const onDeleteRow = async (id: string) => {
+    if (isDeletingTransaction) {
+      return;
+    }
+    try {
+      setIsDeletingTransaction(true);
+      setTransactionError("");
+      const deleteResponse = await fetch(`/api/transactions/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!deleteResponse.ok) {
+        const payload = (await deleteResponse.json().catch(() => ({}))) as { error?: string };
+        const message = payload.error || "Gagal menghapus transaksi.";
+        setTransactionError(message);
+        toast.error(message);
+        return;
+      }
+
+      const listResponse = await fetch("/api/transactions", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (listResponse.ok) {
+        const listPayload = (await listResponse.json().catch(() => ({}))) as {
+          transactions?: Array<{
+            id: string;
+            date: string;
+            roomNumber: string;
+            clientName: string;
+            quantityKg: number | string;
+            pricePerKg: number | string;
+          }>;
+        };
+        const nextTransactions = (listPayload.transactions ?? []).map((transaction) => ({
+          id: transaction.id,
+          date: transaction.date,
+          roomNumber: transaction.roomNumber,
+          clientName: transaction.clientName,
+          quantityKg: Number(transaction.quantityKg),
+          pricePerKg: Number(transaction.pricePerKg),
+        }));
+        setTransactionState(nextTransactions);
+      } else {
+        setTransactionError("Transaksi berhasil dihapus, tapi gagal memuat ulang data.");
+      }
+
+      if (editDraft?.id === id) {
+        setEditDraft(null);
+      }
+      toast.success("Transaksi berhasil dihapus.");
+    } catch {
+      setTransactionError("Gagal menghapus transaksi.");
+      toast.error("Gagal menghapus transaksi.");
+    } finally {
+      setIsDeletingTransaction(false);
+    }
+  };
+
+  const onLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // no-op: client-side cleanup still runs
+    } finally {
+      clearAuthSession();
+      router.replace("/login");
+    }
   };
 
   const buildExportRows = () => {
@@ -495,7 +720,7 @@ export default function ReportPage() {
     const blob = new Blob([`\uFEFF${csvLines.join("\n")}`], {
       type: "text/csv;charset=utf-8;",
     });
-    downloadBlob(blob, `laundry-report-${filterYear}-${filterMonth}.csv`);
+    downloadBlob(blob, `laundry-report.csv`);
   };
 
   const onDownloadXLSX = async () => {
@@ -538,7 +763,7 @@ export default function ReportPage() {
       const blob = new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-      downloadBlob(blob, `laundry-report-${filterYear}-${filterMonth}.xlsx`);
+      downloadBlob(blob, `laundry-report.xlsx`);
     } finally {
       setIsExportingXlsx(false);
     }
@@ -608,39 +833,87 @@ export default function ReportPage() {
         pageIndex += 1;
       }
 
-      pdf.save(`laundry-report-${filterYear}-${filterMonth}.pdf`);
+      pdf.save(`laundry-report.pdf`);
     } finally {
       setIsSavingPdf(false);
     }
   };
 
-  const performResetAll = () => {
+  const performResetAll = async () => {
+    if (isDeletingTransaction) {
+      return;
+    }
+
     const now = new Date();
     const today = now.toISOString().slice(0, 10);
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
+    try {
+      setIsDeletingTransaction(true);
+      setTransactionError("");
+      const resetResponse = await fetch("/api/transactions", {
+        method: "DELETE",
+        credentials: "include",
+      });
 
-    persistTransactions([]);
-    setReportPreferences({
-      clientName: "",
-      keterangan: "",
-      month,
-      year,
-      week: null,
-    });
+      if (!resetResponse.ok) {
+        const payload = (await resetResponse.json().catch(() => ({}))) as { error?: string };
+        const message = payload.error || "Gagal reset semua data laporan.";
+        setTransactionError(message);
+        toast.error(message);
+        return;
+      }
 
-    setReportClientName("");
-    setReportKeterangan("");
-    setFilterMonth(month);
-    setFilterYear(year);
-    setFilterWeek(null);
-    setFormDate(today);
-    setFormRoomNumber("");
-    setFormQuantityKg("1");
-    setFormPriceInput("");
-    setEditDraft(null);
-    setError("");
-    toast.success("Semua data laporan berhasil direset.");
+      const listResponse = await fetch("/api/transactions", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (listResponse.ok) {
+        const listPayload = (await listResponse.json().catch(() => ({}))) as {
+          transactions?: Array<{
+            id: string;
+            date: string;
+            roomNumber: string;
+            clientName: string;
+            quantityKg: number | string;
+            pricePerKg: number | string;
+          }>;
+        };
+        const nextTransactions = (listPayload.transactions ?? []).map((transaction) => ({
+          id: transaction.id,
+          date: transaction.date,
+          roomNumber: transaction.roomNumber,
+          clientName: transaction.clientName,
+          quantityKg: Number(transaction.quantityKg),
+          pricePerKg: Number(transaction.pricePerKg),
+        }));
+        setTransactionState(nextTransactions);
+      } else {
+        setTransactionState([]);
+      }
+
+      setReportPreferences({
+        clientName: "",
+        keterangan: "",
+        startDate: null,
+        endDate: null,
+      });
+      setReportClientName("");
+      setReportKeterangan("");
+      setStartDate("");
+      setEndDate("");
+      setFormDate(today);
+      setFormRoomNumber("");
+      setFormQuantityKg("1");
+      setFormPriceInput("");
+      setEditDraft(null);
+      setError("");
+      toast.success("Semua data laporan berhasil direset.");
+    } catch {
+      setTransactionError("Gagal reset semua data laporan.");
+      toast.error("Gagal reset semua data laporan.");
+    } finally {
+      setIsDeletingTransaction(false);
+    }
   };
 
   const onResetAll = () => {
@@ -873,10 +1146,14 @@ export default function ReportPage() {
 
             <button
               type="submit"
+              disabled={isCreatingTransaction}
               className="btn btn-primary mt-4 flex w-full items-center justify-center gap-2 py-2.5"
             >
+              {isCreatingTransaction && (
+                <Spinner size="sm" className="border-slate-200 border-t-white" />
+              )}
               <FiPlus className="text-base" />
-              Tambah
+              {isCreatingTransaction ? "Menyimpan..." : "Tambah"}
             </button>
           </motion.form>
 
@@ -894,36 +1171,21 @@ export default function ReportPage() {
                     Tabel Transaksi Harian
                   </h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    Filter berdasarkan bulan, tahun, dan minggu agar data tidak tercampur.
+                    Filter berdasarkan rentang tanggal.
                   </p>
                 </div>
-                <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-auto lg:min-w-[520px]">
-                  <CustomSelect
-                    id="month-filter"
-                    label="Bulan"
-                    value={String(filterMonth)}
-                    onChange={(value) => setFilterMonth(Number(value))}
-                    options={MONTH_OPTIONS.map((month) => ({
-                      value: String(month.value),
-                      label: month.label,
-                    }))}
+                <div className="grid w-full gap-2 sm:grid-cols-2 lg:w-auto lg:min-w-[420px]">
+                  <CustomDatePicker
+                    id="start-date-filter"
+                    label="Start Date"
+                    value={startDate}
+                    onChange={setStartDate}
                   />
-                  <CustomSelect
-                    id="year-filter"
-                    label="Tahun"
-                    value={String(filterYear)}
-                    onChange={(value) => setFilterYear(Number(value))}
-                    options={yearOptions.map((year) => ({
-                      value: String(year),
-                      label: String(year),
-                    }))}
-                  />
-                  <CustomSelect
-                    id="week-filter"
-                    label="Minggu"
-                    value={filterWeek ? String(filterWeek) : "all"}
-                    onChange={(value) => setFilterWeek(value === "all" ? null : Number(value))}
-                    options={weekOptions}
+                  <CustomDatePicker
+                    id="end-date-filter"
+                    label="End Date"
+                    value={endDate}
+                    onChange={setEndDate}
                   />
                 </div>
               </div>
@@ -973,6 +1235,14 @@ export default function ReportPage() {
                   {isExportingXlsx ? "Exporting..." : "Download XLSX"}
                 </button>
               </div>
+              {isLoadingTransactions && (
+                <p className="mt-3 text-xs text-slate-600">Memuat transaksi dari server...</p>
+              )}
+              {transactionError && (
+                <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {transactionError}
+                </p>
+              )}
             </div>
 
             <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -1042,7 +1312,7 @@ export default function ReportPage() {
         >
           <h2 style={{ margin: 0, fontSize: "19px", fontWeight: 700 }}>{finalReportTitle}</h2>
           <p style={{ margin: "7px 0 0", fontSize: "12px", color: "#475569" }}>
-            Periode: {MONTH_OPTIONS.find((m) => m.value === filterMonth)?.label} {filterYear}
+            Periode: {startDate || "-"} s/d {endDate || "-"}
           </p>
         </div>
 

@@ -1,7 +1,6 @@
 export interface ReportPreferences {
   clientName: string;
   keterangan: string;
-  month: number | null;
-  year: number | null;
-  week: number | null;
+  startDate: string | null;
+  endDate: string | null;
 }

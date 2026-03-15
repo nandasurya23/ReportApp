@@ -134,10 +134,10 @@ export function TransactionsTable({
                     showDateGroup ? formatISODateToLongID(transaction.date) : ""
                   )}
                 </td>
-                <td className="border border-slate-300 px-3 py-2 text-right align-top">
+                <td className="border border-slate-300 px-3 py-2 text-center align-top">
                   {noteCountByDate.get(transaction.id) ?? 0}
                 </td>
-                <td className="border border-slate-300 px-3 py-2 align-top">
+                <td className="border border-slate-300 px-3 py-2 text-center align-top">
                   {isEditing ? (
                     <input
                       type="text"
@@ -153,7 +153,7 @@ export function TransactionsTable({
                     transaction.roomNumber
                   )}
                 </td>
-                <td className="border border-slate-300 px-3 py-2 text-right align-top">
+                <td className="border border-slate-300 px-3 py-2 text-center align-top">
                   {isEditing ? (
                     <input
                       type="text"
@@ -290,7 +290,9 @@ export function TransactionsTable({
             </p>
           </td>
           <td className="border border-slate-300 px-3 py-2 text-right align-bottom">
-            <p className="text-base font-bold text-slate-900">{formatIDR(monthlyTotal)}</p>
+            <p className="break-words text-sm font-bold leading-tight text-slate-900">
+              {formatIDR(monthlyTotal)}
+            </p>
           </td>
           <td className="no-print-content border border-slate-300 px-3 py-2 align-bottom" />
         </tr>

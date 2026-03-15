@@ -64,9 +64,8 @@ export function getReportPreferences(): ReportPreferences {
   return readJSON<ReportPreferences>(STORAGE_KEYS.REPORT_PREFERENCES, {
     clientName: "",
     keterangan: "",
-    month: null,
-    year: null,
-    week: null,
+    startDate: null,
+    endDate: null,
   });
 }
 
