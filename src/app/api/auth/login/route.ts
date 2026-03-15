@@ -35,6 +35,20 @@ function getLoginAttemptDelegate() {
   return client.loginAttempt;
 }
 
+async function runLoginAttemptOp<T>(
+  op: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await op();
+  } catch (error) {
+    if (!isMissingLoginAttemptTableError(error)) {
+      throw error;
+    }
+    return fallback;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     console.log("[auth/login] step=request-received");
@@ -71,24 +85,22 @@ export async function POST(request: Request) {
     const dayKey = getDayKey(new Date());
     let attempt: { failedCount: number } | null = null;
     const loginAttemptDelegate = getLoginAttemptDelegate();
-    try {
-      if (loginAttemptDelegate) {
-        attempt = (await loginAttemptDelegate.findUnique({
-          where: {
-            username_dayKey: {
-              username,
-              dayKey,
+    if (loginAttemptDelegate) {
+      attempt = await runLoginAttemptOp(
+        async () =>
+          ((await loginAttemptDelegate.findUnique({
+            where: {
+              username_dayKey: {
+                username,
+                dayKey,
+              },
             },
-          },
-          select: {
-            failedCount: true,
-          },
-        })) as { failedCount: number } | null;
-      }
-    } catch (error) {
-      if (!isMissingLoginAttemptTableError(error)) {
-        throw error;
-      }
+            select: {
+              failedCount: true,
+            },
+          })) as { failedCount: number } | null),
+        null,
+      );
     }
     if ((attempt?.failedCount ?? 0) >= MAX_FAILED_LOGIN_ATTEMPTS_PER_DAY) {
       return NextResponse.json(
@@ -126,31 +138,29 @@ export async function POST(request: Request) {
     });
 
     if (!user || !passwordMatched) {
-      try {
-        if (loginAttemptDelegate) {
-          await loginAttemptDelegate.upsert({
-            where: {
-              username_dayKey: {
+      if (loginAttemptDelegate) {
+        await runLoginAttemptOp(
+          async () =>
+            loginAttemptDelegate.upsert({
+              where: {
+                username_dayKey: {
+                  username,
+                  dayKey,
+                },
+              },
+              update: {
+                failedCount: {
+                  increment: 1,
+                },
+              },
+              create: {
                 username,
                 dayKey,
+                failedCount: 1,
               },
-            },
-            update: {
-              failedCount: {
-                increment: 1,
-              },
-            },
-            create: {
-              username,
-              dayKey,
-              failedCount: 1,
-            },
-          });
-        }
-      } catch (error) {
-        if (!isMissingLoginAttemptTableError(error)) {
-          throw error;
-        }
+            }),
+          null,
+        );
       }
       return NextResponse.json(
         { error: "Invalid username or password." },
@@ -158,19 +168,17 @@ export async function POST(request: Request) {
       );
     }
 
-    try {
-      if (loginAttemptDelegate) {
-        await loginAttemptDelegate.deleteMany({
-          where: {
-            username,
-            dayKey,
-          },
-        });
-      }
-    } catch (error) {
-      if (!isMissingLoginAttemptTableError(error)) {
-        throw error;
-      }
+    if (loginAttemptDelegate) {
+      await runLoginAttemptOp(
+        async () =>
+          loginAttemptDelegate.deleteMany({
+            where: {
+              username,
+              dayKey,
+            },
+          }),
+        null,
+      );
     }
 
     const token = createSessionToken();

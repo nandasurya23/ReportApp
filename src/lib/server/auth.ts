@@ -1,4 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
+import { NextResponse } from "next/server";
 
 import { AUTH_COOKIE_NAME } from "@/lib/constants/auth";
 
@@ -40,5 +41,16 @@ export const authCookieOptions = {
   maxAge: SESSION_MAX_AGE_SECONDS,
 };
 
-export { AUTH_COOKIE_NAME };
+export function clearAuthCookie(response: NextResponse): NextResponse {
+  response.cookies.set(AUTH_COOKIE_NAME, "", {
+    ...authCookieOptions,
+    maxAge: 0,
+  });
+  return response;
+}
 
+export function unauthorizedResponse(): NextResponse {
+  return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+}
+
+export { AUTH_COOKIE_NAME };

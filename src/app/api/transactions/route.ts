@@ -2,26 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/session";
+import {
+  compactText,
+  MAX_CLIENT_NAME_LENGTH,
+  MAX_ROOM_NUMBER_LENGTH,
+  parseDate,
+  TransactionInputBody,
+  toTransactionResponse,
+} from "@/app/api/transactions/shared";
 
 export const runtime = "nodejs";
-const MAX_ROOM_NUMBER_LENGTH = 64;
-const MAX_CLIENT_NAME_LENGTH = 160;
-
-function compactText(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-function parseDate(value: string): Date | null {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  const date = new Date(`${trimmed}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-  return date;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,14 +45,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         transactions: transactions.map((transaction) => ({
-          id: transaction.id,
-          date: transaction.date.toISOString().slice(0, 10),
-          roomNumber: transaction.roomNumber,
-          clientName: transaction.clientName,
-          quantityKg: Number(transaction.quantityKg),
-          pricePerKg: transaction.pricePerKg,
-          createdAt: transaction.createdAt.toISOString(),
-          updatedAt: transaction.updatedAt.toISOString(),
+          ...toTransactionResponse(transaction),
         })),
         page,
         limit,
@@ -83,15 +66,7 @@ export async function POST(request: NextRequest) {
       return auth.unauthorizedResponse;
     }
 
-    const body = (await request.json().catch(() => null)) as
-      | {
-          date?: string;
-          roomNumber?: string;
-          clientName?: string;
-          quantityKg?: number | string;
-          pricePerKg?: number | string;
-        }
-      | null;
+    const body = (await request.json().catch(() => null)) as TransactionInputBody | null;
     if (!body) {
       return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
     }
@@ -143,16 +118,9 @@ export async function POST(request: NextRequest) {
     if (existing) {
       return NextResponse.json(
         {
-          transaction: {
-            id: existing.id,
-            date: existing.date.toISOString().slice(0, 10),
-            roomNumber: existing.roomNumber,
-            clientName: existing.clientName,
-            quantityKg: Number(existing.quantityKg),
-            pricePerKg: existing.pricePerKg,
-            createdAt: existing.createdAt.toISOString(),
-            updatedAt: existing.updatedAt.toISOString(),
-          },
+        transaction: {
+          ...toTransactionResponse(existing),
+        },
         },
         { status: 200 },
       );
@@ -172,14 +140,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         transaction: {
-          id: transaction.id,
-          date: transaction.date.toISOString().slice(0, 10),
-          roomNumber: transaction.roomNumber,
-          clientName: transaction.clientName,
-          quantityKg: Number(transaction.quantityKg),
-          pricePerKg: transaction.pricePerKg,
-          createdAt: transaction.createdAt.toISOString(),
-          updatedAt: transaction.updatedAt.toISOString(),
+          ...toTransactionResponse(transaction),
         },
       },
       { status: 201 },
