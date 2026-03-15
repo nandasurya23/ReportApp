@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import {
   FiDownload,
   FiFileText,
@@ -31,7 +32,7 @@ interface ReportControlsProps {
   transactionError: string;
 }
 
-export function ReportControls({
+function ReportControlsComponent({
   startDate,
   endDate,
   setStartDate,
@@ -166,3 +167,5 @@ export function ReportControls({
     </div>
   );
 }
+
+export const ReportControls = memo(ReportControlsComponent);

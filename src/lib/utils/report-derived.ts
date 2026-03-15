@@ -107,3 +107,34 @@ export function filterTransactionsBySearch(
     );
   });
 }
+
+export function buildReportDerivedData(params: {
+  transactions: LaundryTransaction[];
+  startDate: string;
+  endDate: string;
+  searchQuery: string;
+}) {
+  const filteredTransactions = filterTransactions(
+    params.transactions,
+    params.startDate,
+    params.endDate,
+  );
+  const sortedTransactions = sortTransactions(filteredTransactions);
+  const monthlyTotal = getMonthlyTotalFromTransactions(sortedTransactions);
+  const dailySubtotalByDate = getDailySubtotalByDate(sortedTransactions);
+  const noteCountByDate = getNoteCountByDate(sortedTransactions);
+  const visibleTransactions = filterTransactionsBySearch(sortedTransactions, params.searchQuery);
+  const visibleDailySubtotalByDate = getDailySubtotalByDate(visibleTransactions);
+  const visibleNoteCountByDate = getNoteCountByDate(visibleTransactions);
+
+  return {
+    filteredTransactions,
+    sortedTransactions,
+    monthlyTotal,
+    dailySubtotalByDate,
+    noteCountByDate,
+    visibleTransactions,
+    visibleDailySubtotalByDate,
+    visibleNoteCountByDate,
+  };
+}
