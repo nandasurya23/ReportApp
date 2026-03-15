@@ -12,52 +12,36 @@ function downloadBlob(blob: Blob, fileName: string) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function downloadReportCSV(params: {
-  rows: ExportRow[];
-  printKeterangan: string;
-  monthlyTotal: number;
-  username: string;
-  formatDateWITA: () => string;
-}) {
-  const { rows, printKeterangan, monthlyTotal, username, formatDateWITA } = params;
+async function savePdfBlobWithFallback(pdf: jsPDF, fileName: string) {
+  const blob = pdf.output("blob");
+  const file = new File([blob], fileName, { type: "application/pdf" });
+  const canUseShareFiles =
+    typeof navigator !== "undefined" &&
+    "share" in navigator &&
+    "canShare" in navigator &&
+    navigator.canShare({ files: [file] });
 
-  const header = [
-    "No",
-    "Tanggal",
-    "Jumlah Nota",
-    "No Kamar",
-    "Satuan",
-    "Harga",
-    "Harga Total Harian",
-    "Total Keseluruhan",
-    "Keterangan",
-  ];
-  const csvLines = [
-    header.join(","),
-    ...rows.map((row) =>
-      [
-        row.no,
-        row.tanggal,
-        row.jumlahNota,
-        row.noKamar,
-        row.satuan,
-        row.harga,
-        row.totalHarian,
-        row.totalKeseluruhan,
-        `"${row.keterangan.replace(/"/g, '""')}"`,
-      ].join(","),
-    ),
-    `,,,,,,Keterangan,${printKeterangan}`,
-    `,,,,,,Total Bulanan,${monthlyTotal}`,
-    `,,,,,,TTD ${username},${formatDateWITA()}`,
-  ];
-  const blob = new Blob([`\uFEFF${csvLines.join("\n")}`], {
-    type: "text/csv;charset=utf-8;",
-  });
-  downloadBlob(blob, "laundry-report.csv");
+  if (canUseShareFiles) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: fileName,
+      });
+      return;
+    } catch {
+      // Continue to fallback download/open flow.
+    }
+  }
+
+  downloadBlob(blob, fileName);
+  window.setTimeout(() => {
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }, 250);
 }
 
 export async function downloadReportXLSX(params: {
@@ -110,6 +94,7 @@ export async function downloadReportXLSX(params: {
 }
 
 export async function saveReportPDF(element: HTMLElement) {
+  const fileName = element.getAttribute("data-pdf-file-name") || "laundry-report.pdf";
   const canvas = await html2canvas(element, {
     scale: 2,
     useCORS: true,
@@ -163,5 +148,5 @@ export async function saveReportPDF(element: HTMLElement) {
     pageIndex += 1;
   }
 
-  pdf.save("laundry-report.pdf");
+  await savePdfBlobWithFallback(pdf, fileName);
 }

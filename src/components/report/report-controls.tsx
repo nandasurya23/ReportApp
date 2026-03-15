@@ -2,7 +2,6 @@
 
 import { memo } from "react";
 import {
-  FiDownload,
   FiFileText,
   FiGrid,
   FiPrinter,
@@ -24,7 +23,6 @@ interface ReportControlsProps {
   onResetAll: () => void;
   onPrint: () => void;
   onSavePdf: () => void;
-  onDownloadCSV: () => void;
   onDownloadXLSX: () => void;
   isSavingPdf: boolean;
   isExportingXlsx: boolean;
@@ -44,7 +42,6 @@ function ReportControlsComponent({
   onResetAll,
   onPrint,
   onSavePdf,
-  onDownloadCSV,
   onDownloadXLSX,
   isSavingPdf,
   isExportingXlsx,
@@ -104,7 +101,7 @@ function ReportControlsComponent({
           </span>
         </div>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <button
           type="button"
           onClick={onResetAll}
@@ -130,14 +127,6 @@ function ReportControlsComponent({
           {isSavingPdf && <Spinner size="sm" className="border-slate-200 border-t-white" />}
           <FiFileText />
           {isSavingPdf ? "Saving..." : "Save PDF"}
-        </button>
-        <button
-          type="button"
-          onClick={onDownloadCSV}
-          className="btn flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-600"
-        >
-          <FiDownload />
-          Download CSV
         </button>
         <button
           type="button"
