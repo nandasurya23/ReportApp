@@ -11,11 +11,13 @@ import {
   resetTransactionsRequest,
   updateTransactionRequest,
 } from "@/lib/services/report-api";
+import { safeJson } from "@/lib/utils/http";
 import {
   parsePriceInput,
   parseQuantityInput,
   validateTransactionInput,
 } from "@/lib/utils/report-form";
+import { mapTransactionRows } from "@/lib/utils/report-transform";
 
 interface EditDraft {
   id: string;
@@ -26,18 +28,17 @@ interface EditDraft {
   priceInput: string;
 }
 
+type TransactionRow = {
+  id: string;
+  date: string;
+  roomNumber: string;
+  clientName: string;
+  quantityKg: number;
+  pricePerKg: number;
+};
+
 interface UseReportTransactionsActionsParams {
-  fetchTransactionsList: () => Promise<
-    | Array<{
-        id: string;
-        date: string;
-        roomNumber: string;
-        clientName: string;
-        quantityKg: number;
-        pricePerKg: number;
-      }>
-    | null
-  >;
+  fetchTransactionsList: () => Promise<TransactionRow[] | null>;
   isCreatingTransaction: boolean;
   isUpdatingTransaction: boolean;
   isDeletingTransaction: boolean;
@@ -45,16 +46,7 @@ interface UseReportTransactionsActionsParams {
   setIsUpdatingTransaction: (value: boolean) => void;
   setIsDeletingTransaction: (value: boolean) => void;
   setTransactionError: (value: string) => void;
-  setTransactionState: (
-    value: Array<{
-      id: string;
-      date: string;
-      roomNumber: string;
-      clientName: string;
-      quantityKg: number;
-      pricePerKg: number;
-    }>,
-  ) => void;
+  setTransactionState: (value: TransactionRow[] | ((prev: TransactionRow[]) => TransactionRow[])) => void;
   setError: (value: string) => void;
   reportClientName: string;
   reportKeterangan: string;
@@ -102,6 +94,15 @@ export function useReportTransactionsActions({
   editDraft,
   setEditDraft,
 }: UseReportTransactionsActionsParams) {
+  const mapTransactionFromPayload = (payload: unknown) => {
+    const raw = (payload as { transaction?: unknown })?.transaction;
+    if (!raw || typeof raw !== "object") {
+      return null;
+    }
+    const mapped = mapTransactionRows([raw as never]);
+    return mapped[0] ?? null;
+  };
+
   const reloadTransactions = async (onFailedMessage: string, fallbackToEmpty = false) => {
     const nextTransactions = await fetchTransactionsList();
     if (nextTransactions) {
@@ -158,7 +159,19 @@ export function useReportTransactionsActions({
         return;
       }
 
-      await reloadTransactions("Transaksi berhasil ditambah, tapi gagal memuat ulang data.");
+      const payload = await safeJson(createResponse, {} as { transaction?: unknown });
+      const createdTransaction = mapTransactionFromPayload(payload);
+      if (createdTransaction) {
+        setTransactionState((prev) => {
+          const exists = prev.some((item) => item.id === createdTransaction.id);
+          if (exists) {
+            return prev.map((item) => (item.id === createdTransaction.id ? createdTransaction : item));
+          }
+          return [...prev, createdTransaction];
+        });
+      } else {
+        await reloadTransactions("Transaksi berhasil ditambah, tapi gagal memuat ulang data.");
+      }
 
       setFormDate(new Date().toISOString().slice(0, 10));
       setFormRoomNumber("");
@@ -220,7 +233,18 @@ export function useReportTransactionsActions({
         return;
       }
 
-      await reloadTransactions("Transaksi berhasil diupdate, tapi gagal memuat ulang data.");
+      const payload = await safeJson(updateResponse, {} as { transaction?: unknown });
+      const updatedTransaction = mapTransactionFromPayload(payload);
+      if (updatedTransaction) {
+        setTransactionState((prev) => {
+          if (!prev.some((item) => item.id === updatedTransaction.id)) {
+            return prev;
+          }
+          return prev.map((item) => (item.id === updatedTransaction.id ? updatedTransaction : item));
+        });
+      } else {
+        await reloadTransactions("Transaksi berhasil diupdate, tapi gagal memuat ulang data.");
+      }
 
       setEditDraft(null);
       setError("");
@@ -252,7 +276,7 @@ export function useReportTransactionsActions({
         return;
       }
 
-      await reloadTransactions("Transaksi berhasil dihapus, tapi gagal memuat ulang data.");
+      setTransactionState((prev) => prev.filter((item) => item.id !== id));
 
       if (editDraft?.id === id) {
         setEditDraft(null);
@@ -260,7 +284,6 @@ export function useReportTransactionsActions({
       toast.success("Transaksi berhasil dihapus.");
     } catch {
       setTransactionError("Gagal menghapus transaksi.");
-      toast.error("Gagal menghapus transaksi.");
       toast.error("Gagal menghapus transaksi.");
     } finally {
       setIsDeletingTransaction(false);
