@@ -106,27 +106,6 @@ export async function POST(request: NextRequest) {
 
     const normalizedQuantityKg = normalizeOneDecimalQuantity(quantityKg);
     const normalizedPricePerKg = Math.round(pricePerKg);
-    const existing = await prisma.transaction.findFirst({
-      where: {
-        userId: auth.userId,
-        date,
-        roomNumber,
-        clientName,
-        quantityKg: normalizedQuantityKg,
-        pricePerKg: normalizedPricePerKg,
-      },
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        {
-        transaction: {
-          ...toTransactionResponse(existing),
-        },
-        },
-        { status: 200 },
-      );
-    }
 
     const transaction = await prisma.transaction.create({
       data: {

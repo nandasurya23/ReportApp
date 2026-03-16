@@ -1,10 +1,10 @@
-import { createHash } from "node:crypto";
+import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 function hashPassword(password) {
-  return createHash("sha256").update(password).digest("hex");
+  return bcrypt.hashSync(password, 12);
 }
 
 async function main() {
@@ -36,6 +36,30 @@ async function main() {
     update: updateData,
     create: createData,
   });
+
+  const isProductionSeed = process.env.NODE_ENV === "production";
+  if (!isProductionSeed) {
+    const devUsername = "devadmin";
+    const devPasswordHash = hashPassword("dev12345");
+    const devCreateData = {
+      username: devUsername,
+      passwordHash: devPasswordHash,
+      ...(hasRoleField ? { role: "admin" } : {}),
+      ...(hasCreatedAt ? { createdAt: now } : {}),
+      ...(hasUpdatedAt ? { updatedAt: now } : {}),
+    };
+    const devUpdateData = {
+      passwordHash: devPasswordHash,
+      ...(hasRoleField ? { role: "admin" } : {}),
+      ...(hasUpdatedAt ? { updatedAt: now } : {}),
+    };
+
+    await prisma.user.upsert({
+      where: { username: devUsername },
+      update: devUpdateData,
+      create: devCreateData,
+    });
+  }
 
   console.log('Seed complete: default admin "pelunk" is ready.');
 }

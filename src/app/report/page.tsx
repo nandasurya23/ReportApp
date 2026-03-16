@@ -40,26 +40,35 @@ interface EditDraft {
   priceInput: string;
 }
 
-async function fetchTransactionsList(): Promise<LaundryTransaction[] | null> {
+async function fetchTransactionsPage(page: number, limit = 100): Promise<{
+  rows: LaundryTransaction[];
+  page: number;
+  total: number;
+  totalPages: number;
+} | null> {
   try {
-    const pageSize = 100;
-    let page = 1;
-    let totalPages = 1;
-    const allRows: LaundryTransaction[] = [];
-
-    while (page <= totalPages) {
-      const response = await getTransactionsRequest({ page, limit: pageSize });
-      if (!response.ok) {
-        return null;
-      }
-      const payload = await getTransactionsPayload(response);
-      allRows.push(...mapTransactionRows(payload.transactions));
-      const nextTotalPages = Number(payload.totalPages);
-      totalPages = Number.isFinite(nextTotalPages) && nextTotalPages > 0 ? Math.floor(nextTotalPages) : page;
-      page += 1;
+    const response = await getTransactionsRequest({ page, limit });
+    if (!response.ok) {
+      return null;
     }
+    const payload = await getTransactionsPayload(response);
+    const rows = mapTransactionRows(payload.transactions);
+    const currentPage = Number.isFinite(Number(payload.page)) && Number(payload.page) > 0
+      ? Math.floor(Number(payload.page))
+      : page;
+    const total = Number.isFinite(Number(payload.total)) && Number(payload.total) >= 0
+      ? Math.floor(Number(payload.total))
+      : rows.length;
+    const totalPages = Number.isFinite(Number(payload.totalPages)) && Number(payload.totalPages) > 0
+      ? Math.floor(Number(payload.totalPages))
+      : 1;
 
-    return allRows;
+    return {
+      rows,
+      page: currentPage,
+      total,
+      totalPages,
+    };
   } catch {
     return null;
   }
@@ -104,7 +113,7 @@ export default function ReportPage() {
   const [reportKeterangan, setReportKeterangan] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [formQuantityKg, setFormQuantityKg] = useState("1");
-  const [formPriceInput, setFormPriceInput] = useState("");
+  const [formPriceInput, setFormPriceInput] = useState(formatThousands(15000));
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [error, setError] = useState("");
   const [transactionError, setTransactionError] = useState("");
@@ -115,6 +124,21 @@ export default function ReportPage() {
   const [isSavingPdf, setIsSavingPdf] = useState(false);
   const [isExportingXlsx, setIsExportingXlsx] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMoreTransactions, setHasMoreTransactions] = useState(false);
+  const [isLoadingMoreTransactions, setIsLoadingMoreTransactions] = useState(false);
+
+  const fetchTransactionsList = useCallback(async (): Promise<LaundryTransaction[] | null> => {
+    const result = await fetchTransactionsPage(1, 100);
+    if (!result) {
+      return null;
+    }
+    setTotalTransactions(result.total);
+    setCurrentPage(result.page);
+    setHasMoreTransactions(result.page < result.totalPages);
+    return result.rows;
+  }, []);
 
   useEffect(() => {
     if (isInitializing) {
@@ -255,6 +279,43 @@ export default function ReportPage() {
     showResetAllConfirmation(performResetAll);
   }, [performResetAll]);
 
+  const onLoadMoreTransactions = useCallback(async () => {
+    if (!hasMoreTransactions || isLoadingMoreTransactions) {
+      return;
+    }
+    setIsLoadingMoreTransactions(true);
+    setTransactionError("");
+    try {
+      const nextPage = currentPage + 1;
+      const result = await fetchTransactionsPage(nextPage, 100);
+      if (!result) {
+        setTransactionError("Gagal memuat data tambahan.");
+        return;
+      }
+      setTransactionState((prev) => {
+        const existingIds = new Set(prev.map((item) => item.id));
+        const appended = result.rows.filter((item) => !existingIds.has(item.id));
+        if (appended.length === 0) {
+          return prev;
+        }
+        return [...prev, ...appended];
+      });
+      setTotalTransactions(result.total);
+      setCurrentPage(result.page);
+      setHasMoreTransactions(result.page < result.totalPages);
+    } catch {
+      setTransactionError("Gagal memuat data tambahan.");
+    } finally {
+      setIsLoadingMoreTransactions(false);
+    }
+  }, [currentPage, hasMoreTransactions, isLoadingMoreTransactions]);
+
+  useEffect(() => {
+    if (transactions.length > totalTransactions) {
+      setTotalTransactions(transactions.length);
+    }
+  }, [transactions.length, totalTransactions]);
+
   const activeClientCount = reportClientName.trim() ? 1 : 0;
   const activeTransactionCount = sortedTransactions.length;
 
@@ -333,6 +394,11 @@ export default function ReportPage() {
               onDownloadXLSX={onDownloadXLSX}
               isSavingPdf={isSavingPdf}
               isExportingXlsx={isExportingXlsx}
+              loadedCount={transactions.length}
+              totalAvailable={Math.max(totalTransactions, transactions.length)}
+              hasMoreTransactions={hasMoreTransactions}
+              onLoadMoreTransactions={onLoadMoreTransactions}
+              isLoadingMoreTransactions={isLoadingMoreTransactions}
               isLoadingTransactions={isLoadingTransactions}
               transactionError={transactionError}
               finalReportTitle={finalReportTitle}

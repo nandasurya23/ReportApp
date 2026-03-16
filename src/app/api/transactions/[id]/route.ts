@@ -54,7 +54,11 @@ export async function PATCH(
       pricePerKg?: number;
     } = {};
 
-    if (typeof body.date === "string") {
+    const hasDateField = Object.prototype.hasOwnProperty.call(body, "date");
+    if (hasDateField) {
+      if (typeof body.date !== "string") {
+        return NextResponse.json({ error: "Invalid date." }, { status: 400 });
+      }
       const parsedDate = parseDate(body.date);
       if (!parsedDate) {
         return NextResponse.json({ error: "Invalid date." }, { status: 400 });
@@ -104,36 +108,6 @@ export async function PATCH(
         return NextResponse.json({ error: "pricePerKg must be >= 0." }, { status: 400 });
       }
       data.pricePerKg = Math.round(pricePerKg);
-    }
-
-    const nextDate = data.date ?? existing.date;
-    const nextRoomNumber = data.roomNumber ?? existing.roomNumber;
-    const nextClientName = data.clientName ?? existing.clientName;
-    const nextQuantityKg = data.quantityKg ?? Number(existing.quantityKg);
-    const nextPricePerKg = data.pricePerKg ?? existing.pricePerKg;
-
-    const duplicate = await prisma.transaction.findFirst({
-      where: {
-        userId: auth.userId,
-        id: {
-          not: existing.id,
-        },
-        date: nextDate,
-        roomNumber: nextRoomNumber,
-        clientName: nextClientName,
-        quantityKg: nextQuantityKg,
-        pricePerKg: nextPricePerKg,
-      },
-    });
-    if (duplicate) {
-      return NextResponse.json(
-        {
-          transaction: {
-            ...toTransactionResponse(duplicate),
-          },
-        },
-        { status: 200 },
-      );
     }
 
     const transaction = await prisma.transaction.update({

@@ -4,6 +4,8 @@ import {
   AUTH_COOKIE_NAME,
   authCookieOptions,
   createSessionToken,
+  hashPassword,
+  needsPasswordRehash,
   SESSION_MAX_AGE_SECONDS,
   verifyPassword,
 } from "@/lib/server/auth";
@@ -166,6 +168,28 @@ export async function POST(request: Request) {
         { error: "Invalid username or password." },
         { status: 401 },
       );
+    }
+
+    if (
+      typeof needsPasswordRehash === "function" &&
+      typeof hashPassword === "function" &&
+      needsPasswordRehash(user.passwordHash)
+    ) {
+      try {
+        const userDelegate = prisma.user as unknown as {
+          update?: (...args: unknown[]) => Promise<unknown>;
+        };
+        if (userDelegate.update) {
+          await userDelegate.update({
+            where: { id: user.id },
+            data: {
+              passwordHash: hashPassword(password),
+            },
+          });
+        }
+      } catch (error) {
+        console.error("[auth/login] step=password-rehash-failed", error);
+      }
     }
 
     if (loginAttemptDelegate) {

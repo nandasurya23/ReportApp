@@ -34,6 +34,11 @@ interface ReportTableSectionProps {
   onDownloadXLSX: () => void | Promise<void>;
   isSavingPdf: boolean;
   isExportingXlsx: boolean;
+  loadedCount: number;
+  totalAvailable: number;
+  hasMoreTransactions: boolean;
+  onLoadMoreTransactions: () => void | Promise<void>;
+  isLoadingMoreTransactions: boolean;
   isLoadingTransactions: boolean;
   transactionError: string;
   finalReportTitle: string;
@@ -67,6 +72,11 @@ function ReportTableSectionComponent({
   onDownloadXLSX,
   isSavingPdf,
   isExportingXlsx,
+  loadedCount,
+  totalAvailable,
+  hasMoreTransactions,
+  onLoadMoreTransactions,
+  isLoadingMoreTransactions,
   isLoadingTransactions,
   transactionError,
   finalReportTitle,
@@ -106,6 +116,11 @@ function ReportTableSectionComponent({
         onDownloadXLSX={onDownloadXLSX}
         isSavingPdf={isSavingPdf}
         isExportingXlsx={isExportingXlsx}
+        loadedCount={loadedCount}
+        totalAvailable={totalAvailable}
+        hasMoreTransactions={hasMoreTransactions}
+        onLoadMoreTransactions={onLoadMoreTransactions}
+        isLoadingMoreTransactions={isLoadingMoreTransactions}
         isLoadingTransactions={isLoadingTransactions}
         transactionError={transactionError}
       />
