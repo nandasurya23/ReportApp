@@ -26,10 +26,14 @@ const baseProps = {
   onResetAll: jest.fn(),
   onPrint: jest.fn(),
   onSavePdf: jest.fn(),
-  onDownloadCSV: jest.fn(),
   onDownloadXLSX: jest.fn(),
   isSavingPdf: false,
   isExportingXlsx: false,
+  loadedCount: 100,
+  totalAvailable: 286,
+  hasMoreTransactions: true,
+  onLoadMoreTransactions: jest.fn(),
+  isLoadingMoreTransactions: false,
   isLoadingTransactions: false,
   transactionError: "",
 };
@@ -47,8 +51,9 @@ describe("ReportControls", () => {
     render(<ReportControls {...baseProps} />);
     expect(screen.getByText("3 tampil")).toBeInTheDocument();
     expect(screen.getByText("10 total")).toBeInTheDocument();
+    expect(screen.getByText("Menampilkan 100 dari 286 data")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /reset semua/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /download csv/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /muat lebih banyak/i })).toBeInTheDocument();
   });
 
   it("updates search query and triggers handlers", () => {

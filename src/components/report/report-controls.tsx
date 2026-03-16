@@ -26,6 +26,11 @@ interface ReportControlsProps {
   onDownloadXLSX: () => void;
   isSavingPdf: boolean;
   isExportingXlsx: boolean;
+  loadedCount: number;
+  totalAvailable: number;
+  hasMoreTransactions: boolean;
+  onLoadMoreTransactions: () => void;
+  isLoadingMoreTransactions: boolean;
   isLoadingTransactions: boolean;
   transactionError: string;
 }
@@ -45,6 +50,11 @@ function ReportControlsComponent({
   onDownloadXLSX,
   isSavingPdf,
   isExportingXlsx,
+  loadedCount,
+  totalAvailable,
+  hasMoreTransactions,
+  onLoadMoreTransactions,
+  isLoadingMoreTransactions,
   isLoadingTransactions,
   transactionError,
 }: ReportControlsProps) {
@@ -60,7 +70,7 @@ function ReportControlsComponent({
           </h2>
           <p className="mt-1 text-xs text-slate-500">Filter berdasarkan rentang tanggal.</p>
         </div>
-        <div className="grid w-full gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:w-auto lg:min-w-[420px]">
+        <div className="grid w-full gap-2 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-2 lg:w-auto lg:min-w-105">
           <CustomDatePicker
             id="start-date-filter"
             label="Start Date"
@@ -142,6 +152,22 @@ function ReportControlsComponent({
       <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
         Actions
       </p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-slate-600">
+          Menampilkan {loadedCount} dari {totalAvailable} data
+        </p>
+        {hasMoreTransactions && (
+          <button
+            type="button"
+            onClick={onLoadMoreTransactions}
+            disabled={isLoadingMoreTransactions}
+            className="btn inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {isLoadingMoreTransactions && <Spinner size="sm" />}
+            {isLoadingMoreTransactions ? "Memuat..." : "Muat lebih banyak"}
+          </button>
+        )}
+      </div>
       {isLoadingTransactions && (
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
           <Spinner size="sm" />

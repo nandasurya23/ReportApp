@@ -176,7 +176,7 @@ export function useReportTransactionsActions({
       setFormDate(new Date().toISOString().slice(0, 10));
       setFormRoomNumber("");
       setFormQuantityKg("1");
-      setFormPriceInput("");
+      setFormPriceInput("15.000");
       setError("");
       toast.success("Transaksi baru berhasil ditambahkan.");
     } catch {
@@ -197,10 +197,11 @@ export function useReportTransactionsActions({
       return;
     }
 
+    const normalizedDate = editDraft.date.trim();
     const quantityKg = parseQuantityInput(editDraft.quantityKg);
     const pricePerKg = parsePriceInput(editDraft.priceInput);
     const message = validateTransactionInput({
-      date: editDraft.date,
+      date: normalizedDate,
       roomNumber: editDraft.roomNumber,
       keterangan: editDraft.clientName,
       quantityKg,
@@ -217,7 +218,7 @@ export function useReportTransactionsActions({
       setIsUpdatingTransaction(true);
       setTransactionError("");
       const updateResponse = await updateTransactionRequest(editDraft.id, {
-        date: editDraft.date,
+        date: normalizedDate,
         roomNumber: editDraft.roomNumber.trim(),
         clientName: editDraft.clientName.trim(),
         quantityKg,
@@ -325,7 +326,7 @@ export function useReportTransactionsActions({
       setFormDate(today);
       setFormRoomNumber("");
       setFormQuantityKg("1");
-      setFormPriceInput("");
+      setFormPriceInput("15.000");
       setEditDraft(null);
       setError("");
       toast.success("Semua data laporan berhasil direset.");
