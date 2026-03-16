@@ -130,7 +130,7 @@ export function ReportTransactionForm({
                 inputMode="decimal"
                 value={formQuantityKg}
                 onChange={(event) => {
-                  const nextValue = event.target.value.trim();
+                  const nextValue = event.target.value.trim().replace(/,/g, ".");
                   if (nextValue === "") {
                     setFormQuantityKg("");
                     return;
@@ -141,7 +141,7 @@ export function ReportTransactionForm({
                   setFormQuantityKg(nextValue);
                 }}
                 className="input-field input-with-icon"
-                placeholder="Contoh: 1 atau 1.5"
+                placeholder="Contoh: 1,5 atau 1.5"
               />
             </div>
           </div>
