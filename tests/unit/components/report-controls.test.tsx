@@ -2,23 +2,12 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
-jest.mock("@/components/report/custom-date-picker", () => ({
-  CustomDatePicker: ({ id, value, onChange }: { id: string; value: string; onChange: (v: string) => void }) => (
-    <input
-      data-testid={id}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    />
-  ),
-}));
-
 import { ReportControls } from "@/components/report/report-controls";
 
 const baseProps = {
-  startDate: "2026-03-01",
-  endDate: "2026-03-31",
-  setStartDate: jest.fn(),
-  setEndDate: jest.fn(),
+  selectedMonth: "2026-03",
+  selectedMonthLabel: "Maret 2026",
+  onSelectedMonthChange: jest.fn(),
   searchQuery: "",
   setSearchQuery: jest.fn(),
   visibleCount: 3,
@@ -34,7 +23,8 @@ const baseProps = {
   hasMoreTransactions: true,
   onLoadMoreTransactions: jest.fn(),
   isLoadingMoreTransactions: false,
-  isLoadingTransactions: false,
+  isMonthLoading: false,
+  canExport: true,
   transactionError: "",
 };
 
@@ -51,9 +41,10 @@ describe("ReportControls", () => {
     render(<ReportControls {...baseProps} />);
     expect(screen.getByText("3 tampil")).toBeInTheDocument();
     expect(screen.getByText("10 total")).toBeInTheDocument();
-    expect(screen.getByText("Menampilkan 100 dari 286 data")).toBeInTheDocument();
+    expect(screen.getByText("Menampilkan 100 dari 286 baris bulan aktif")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /maret 2026/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /reset semua/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /muat lebih banyak/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /muat baris berikutnya/i })).toBeInTheDocument();
   });
 
   it("updates search query and triggers handlers", () => {
@@ -71,17 +62,17 @@ describe("ReportControls", () => {
     render(
       <ReportControls
         {...baseProps}
-        isLoadingTransactions
+        isMonthLoading
         transactionError="Gagal memuat transaksi dari server."
       />,
     );
-    expect(screen.getByText("Memuat transaksi dari server...")).toBeInTheDocument();
+    expect(screen.getByText("Memuat bulan aktif...")).toBeInTheDocument();
     expect(screen.getByText("Gagal memuat transaksi dari server.")).toBeInTheDocument();
   });
 
   it("disables export buttons in loading states", () => {
-    render(<ReportControls {...baseProps} isSavingPdf isExportingXlsx />);
-    expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /exporting/i })).toBeDisabled();
+    render(<ReportControls {...baseProps} isSavingPdf isExportingXlsx canExport={false} />);
+    expect(screen.getByRole("button", { name: /menyiapkan pdf/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /menyiapkan xlsx/i })).toBeDisabled();
   });
 });

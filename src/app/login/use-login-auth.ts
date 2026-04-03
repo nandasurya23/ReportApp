@@ -44,9 +44,22 @@ export function useLoginAuth({
     try {
       const response = await loginRequest(username.trim(), password.trim());
       const payload = await getLoginPayload(response);
+      const message =
+        payload.message ||
+        payload.error ||
+        (payload.code === "AUTH_RATE_LIMITED"
+          ? "Terlalu banyak percobaan login. Coba lagi nanti."
+          : payload.code === "AUTH_RATE_LIMITER_UNAVAILABLE"
+            ? "Login sedang tidak bisa diproses sementara. Coba lagi sebentar lagi."
+            : payload.code === "AUTH_INVALID_CREDENTIALS"
+              ? "Username atau password salah."
+              : payload.code === "VALIDATION_ERROR"
+                ? "Data login belum lengkap atau belum valid."
+                : payload.code === "AUTH_INTERNAL_ERROR"
+                  ? "Terjadi kendala pada sistem. Coba lagi."
+                  : "Login gagal. Cek kembali kredensial.");
 
       if (!response.ok || !payload.user?.username) {
-        const message = payload.error || "Login gagal. Cek kembali kredensial.";
         applyLoginError(setError, message);
         return;
       }

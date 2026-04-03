@@ -4,6 +4,8 @@ import { useCallback, useMemo, useState } from "react";
 import DatePicker from "react-datepicker";
 import { id as idLocale } from "date-fns/locale/id";
 
+import { PickerFieldInput } from "@/components/report/picker-field-input";
+import { PickerSurface } from "@/components/report/picker-surface";
 import { toISODateOnly } from "@/lib/utils/date";
 
 interface CustomDatePickerProps {
@@ -116,10 +118,12 @@ export function CustomDatePicker({
   }, [formatDisplayDate, onChange, parseIndonesianDate, rawInput]);
 
   return (
-    <div>
-      <label htmlFor={id} className="field-label">
-        {label}
-      </label>
+    <PickerSurface
+      controlId={id}
+      label={label}
+      selectedLabel={isManualEditing ? rawInput || "Pilih tanggal" : formatDisplayDate(selectedDate) || "Pilih tanggal"}
+      helperText="Tanggal ini dipakai untuk transaksi harian."
+    >
       <DatePicker
         id={id}
         selected={selectedDate}
@@ -185,10 +189,16 @@ export function CustomDatePicker({
         showPopperArrow={false}
         popperClassName="report-datepicker-popper"
         calendarClassName="report-datepicker-calendar"
-        className="input-field min-h-11 text-base sm:min-h-10 sm:text-sm"
-        value={isManualEditing ? rawInput : formatDisplayDate(selectedDate)}
+        customInput={
+          <PickerFieldInput
+            aria-label={label}
+            placeholder="Contoh: 1 Maret 2026"
+            value={isManualEditing ? rawInput : formatDisplayDate(selectedDate)}
+            onChange={() => undefined}
+          />
+        }
       />
       {inputError && <p className="mt-1 text-xs text-red-600">{inputError}</p>}
-    </div>
+    </PickerSurface>
   );
 }

@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME } from "@/lib/constants/auth";
 
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
+export const AUTH_RATE_LIMIT_TIME_ZONE = "Asia/Makassar";
 const BCRYPT_ROUNDS = 12;
 
 export function createSessionToken(): string {
@@ -49,6 +50,30 @@ export function verifyPassword(password: string, storedHash: string): boolean {
 
 export function needsPasswordRehash(storedHash: string): boolean {
   return !isBcryptHash(storedHash.trim());
+}
+
+export function getAuthThrottleDayKey(date: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: AUTH_RATE_LIMIT_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const year = parts.find((part) => part.type === "year")?.value ?? "1970";
+  const month = parts.find((part) => part.type === "month")?.value ?? "01";
+  const day = parts.find((part) => part.type === "day")?.value ?? "01";
+
+  return `${year}-${month}-${day}`;
+}
+
+export function isLoginAttemptLimiterUnavailable(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const code = (error as { code?: unknown }).code;
+  return code === "P2021";
 }
 
 export const authCookieOptions = {

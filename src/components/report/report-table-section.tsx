@@ -20,14 +20,16 @@ interface EditDraft {
 }
 
 interface ReportTableSectionProps {
-  startDate: string;
-  endDate: string;
-  setStartDate: (value: string) => void;
-  setEndDate: (value: string) => void;
+  selectedMonth: string;
+  selectedMonthLabel: string;
+  onSelectedMonthChange: (value: string) => void;
+  isMonthLoading: boolean;
+  isMonthReady: boolean;
+  hasMonthError: boolean;
+  monthErrorMessage: string;
   searchQuery: string;
   setSearchQuery: (value: string) => void;
   visibleTransactions: LaundryTransaction[];
-  sortedTransactions: LaundryTransaction[];
   onResetAll: () => void;
   onPrint: () => void;
   onSavePdf: () => void | Promise<void>;
@@ -39,7 +41,6 @@ interface ReportTableSectionProps {
   hasMoreTransactions: boolean;
   onLoadMoreTransactions: () => void | Promise<void>;
   isLoadingMoreTransactions: boolean;
-  isLoadingTransactions: boolean;
   transactionError: string;
   finalReportTitle: string;
   visibleDailySubtotalByDate: Map<string, number>;
@@ -58,14 +59,16 @@ interface ReportTableSectionProps {
 }
 
 function ReportTableSectionComponent({
-  startDate,
-  endDate,
-  setStartDate,
-  setEndDate,
+  selectedMonth,
+  selectedMonthLabel,
+  onSelectedMonthChange,
+  isMonthLoading,
+  isMonthReady,
+  hasMonthError,
+  monthErrorMessage,
   searchQuery,
   setSearchQuery,
   visibleTransactions,
-  sortedTransactions,
   onResetAll,
   onPrint,
   onSavePdf,
@@ -77,7 +80,6 @@ function ReportTableSectionComponent({
   hasMoreTransactions,
   onLoadMoreTransactions,
   isLoadingMoreTransactions,
-  isLoadingTransactions,
   transactionError,
   finalReportTitle,
   visibleDailySubtotalByDate,
@@ -99,17 +101,15 @@ function ReportTableSectionComponent({
       initial={{ opacity: 0, x: 12 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.35, delay: 0.08 }}
-      className="surface-card print-area min-w-0 p-4 sm:p-6"
+      className="surface-card print-area min-w-0 rounded-2xl border border-[#e7ddd1]/80 bg-[#fbf8f4]/90 p-4 shadow-sm sm:p-5"
     >
       <ReportControls
-        startDate={startDate}
-        endDate={endDate}
-        setStartDate={setStartDate}
-        setEndDate={setEndDate}
+        selectedMonth={selectedMonth}
+        onSelectedMonthChange={onSelectedMonthChange}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         visibleCount={visibleTransactions.length}
-        totalCount={sortedTransactions.length}
+        totalCount={totalAvailable}
         onResetAll={onResetAll}
         onPrint={onPrint}
         onSavePdf={onSavePdf}
@@ -121,32 +121,49 @@ function ReportTableSectionComponent({
         hasMoreTransactions={hasMoreTransactions}
         onLoadMoreTransactions={onLoadMoreTransactions}
         isLoadingMoreTransactions={isLoadingMoreTransactions}
-        isLoadingTransactions={isLoadingTransactions}
+        isMonthLoading={isMonthLoading}
+        canExport={isMonthReady}
         transactionError={transactionError}
       />
 
-      <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="mb-4 flex flex-col gap-2 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-base font-semibold text-slate-900 sm:text-lg">{finalReportTitle}</p>
-          <p className="text-xs text-slate-500">
-            {visibleTransactions.length} dari {sortedTransactions.length} transaksi
+      <div className="mt-5 rounded-2xl border border-[#e7ddd1]/80 bg-[#f8f1e8]/60 p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-col gap-2 border-b border-[#e7ddd1] pb-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a7764]">
+              Report Table
+            </p>
+            <p className="mt-1 text-base font-semibold tracking-tight text-[#2f2a25] sm:text-lg">
+              {finalReportTitle}
+            </p>
+          </div>
+          <p className="text-xs text-[#6d5d50]">
+            {loadedCount} baris tampil dari {totalAvailable} baris bulan aktif
           </p>
         </div>
-        <div className="relative overflow-hidden rounded-lg border border-slate-200">
+        <div className="relative overflow-hidden rounded-xl border border-[#e7ddd1] bg-[#fbf8f4]">
           <div className="relative max-h-[66vh] overflow-auto overscroll-contain">
-            {isLoadingTransactions && visibleTransactions.length === 0 ? (
+            {isMonthLoading && !isMonthReady ? (
               <div className="space-y-2 p-3">
-                <div className="h-10 animate-pulse rounded-md bg-slate-200/80" />
-                <div className="h-10 animate-pulse rounded-md bg-slate-100" />
-                <div className="h-10 animate-pulse rounded-md bg-slate-100" />
-                <div className="h-10 animate-pulse rounded-md bg-slate-100" />
+                <div className="h-10 animate-pulse rounded-md bg-[#eadfce]/80" />
+                <div className="h-10 animate-pulse rounded-md bg-[#f4ece2]" />
+                <div className="h-10 animate-pulse rounded-md bg-[#f4ece2]" />
+                <div className="h-10 animate-pulse rounded-md bg-[#f4ece2]" />
               </div>
-            ) : visibleTransactions.length === 0 ? (
-              <div className="bg-white p-4 sm:p-6">
-                <EmptyState />
+            ) : transactionError && visibleTransactions.length === 0 ? (
+              <div className="bg-[#fbf8f4] p-4 sm:p-6">
+                <div className="rounded-2xl border border-rose-200 bg-[#fff5f2]/90 p-6 text-center">
+                  <p className="text-base font-semibold tracking-tight text-rose-700">
+                    Gagal Memuat Bulan Aktif
+                  </p>
+                  <p className="mt-1 text-sm text-rose-600">{transactionError}</p>
+                </div>
+              </div>
+            ) : visibleTransactions.length === 0 && !transactionError ? (
+              <div className="bg-[#fbf8f4] p-4 sm:p-6">
+                <EmptyState selectedMonthLabel={selectedMonthLabel} />
               </div>
             ) : (
-              <div className="[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:shadow-[inset_0_-1px_0_0_rgba(148,163,184,0.35)]">
+              <div className="[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:shadow-[inset_0_-1px_0_0_rgba(148,163,184,0.25)]">
                 <TransactionsTable
                   filteredTransactions={visibleTransactions}
                   dailySubtotalByDate={visibleDailySubtotalByDate}
@@ -162,11 +179,11 @@ function ReportTableSectionComponent({
                 />
               </div>
             )}
-            {isLoadingTransactions && visibleTransactions.length > 0 && (
-              <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center bg-white/45 pt-6 backdrop-blur-[1px]">
-                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm">
+            {isMonthLoading && isMonthReady && (
+              <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center bg-[#fbf8f4]/50 pt-6 backdrop-blur-[1px]">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#e7ddd1] bg-[#fbf8f4] px-3 py-1.5 text-xs font-medium text-[#5b4f44] shadow-sm">
                   <Spinner size="sm" />
-                  Memuat data...
+                  Memuat bulan aktif...
                 </div>
               </div>
             )}
@@ -179,6 +196,10 @@ function ReportTableSectionComponent({
         reportClientName={reportClientName}
         printKeterangan={printKeterangan}
         username={username}
+        selectedMonthLabel={selectedMonthLabel}
+        isMonthLoading={isMonthLoading}
+        hasMonthError={hasMonthError}
+        monthErrorMessage={monthErrorMessage}
       />
     </motion.div>
   );

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+
 import { ReportPdfPreview } from "@/components/report/report-pdf-preview";
 import { ReportStats } from "@/components/report/report-stats";
 import { ReportTableSection } from "@/components/report/report-table-section";
@@ -11,25 +12,25 @@ import { Spinner } from "@/components/ui/spinner";
 import { useReportAuth } from "@/app/report/use-report-auth";
 import { useReportDerived } from "@/app/report/use-report-derived";
 import { useReportTransactionsActions } from "@/app/report/use-report-transactions-actions";
-
-import {
-  setReportPreferences,
-} from "@/lib/storage/local-storage";
+import { setReportPreferences } from "@/lib/storage/local-storage";
 import {
   getTransactionsPayload,
   getTransactionsRequest,
 } from "@/lib/services/report-api";
-import { formatDateWITA } from "@/lib/utils/date";
+import { formatMonthYearLabel, getCurrentMonthKey } from "@/lib/utils/date";
 import { getDailyTotal } from "@/lib/utils/laundry";
+import { showResetAllConfirmation } from "@/lib/utils/report-feedback";
 import {
   buildExportRows as buildExportRowsData,
-  formatThousands,
   formatPriceInput,
+  formatThousands,
   mapTransactionRows,
   parsePriceInput,
 } from "@/lib/utils/report-transform";
-import { showResetAllConfirmation } from "@/lib/utils/report-feedback";
 import { LaundryTransaction } from "@/types/laundry";
+
+const DEFAULT_VISIBLE_ROWS = 100;
+const LOAD_MORE_STEP = 100;
 
 interface EditDraft {
   id: string;
@@ -40,105 +41,119 @@ interface EditDraft {
   priceInput: string;
 }
 
-async function fetchTransactionsPage(page: number, limit = 100): Promise<{
-  rows: LaundryTransaction[];
-  page: number;
-  total: number;
-  totalPages: number;
-} | null> {
-  try {
-    const response = await getTransactionsRequest({ page, limit });
-    if (!response.ok) {
-      return null;
-    }
-    const payload = await getTransactionsPayload(response);
-    const rows = mapTransactionRows(payload.transactions);
-    const currentPage = Number.isFinite(Number(payload.page)) && Number(payload.page) > 0
-      ? Math.floor(Number(payload.page))
-      : page;
-    const total = Number.isFinite(Number(payload.total)) && Number(payload.total) >= 0
-      ? Math.floor(Number(payload.total))
-      : rows.length;
-    const totalPages = Number.isFinite(Number(payload.totalPages)) && Number(payload.totalPages) > 0
-      ? Math.floor(Number(payload.totalPages))
-      : 1;
-
-    return {
-      rows,
-      page: currentPage,
-      total,
-      totalPages,
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function loadReportExportService() {
-  return import("@/lib/services/report-export");
-}
-
-function getReportPdfFileName(visibleTransactions: LaundryTransaction[]) {
-  if (visibleTransactions.length === 0) {
-    return "laporan.pdf";
-  }
-
-  const timestamps = visibleTransactions
-    .map((transaction) => new Date(transaction.date).getTime())
-    .filter((value) => Number.isFinite(value))
-    .sort((a, b) => a - b);
-
-  if (timestamps.length === 0) {
-    return "laporan.pdf";
-  }
-
-  const start = new Date(timestamps[0]);
-  const end = new Date(timestamps[timestamps.length - 1]);
-  const month = end
-    .toLocaleDateString("id-ID", { month: "long" })
-    .toLowerCase();
-
-  return `laporan ${start.getDate()} - ${end.getDate()} ${month}.pdf`;
+function getReportPdfFileName(selectedMonthLabel: string) {
+  return `laporan ${selectedMonthLabel}.pdf`;
 }
 
 export default function ReportPage() {
   const pdfExportRef = useRef<HTMLDivElement>(null);
+  const monthRequestSequenceRef = useRef(0);
+  const monthAbortRef = useRef<AbortController | null>(null);
+
   const [username, setUsername] = useState("");
-  const [transactions, setTransactionState] = useState<LaundryTransaction[]>([]);
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
-  const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
-  const [formRoomNumber, setFormRoomNumber] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
+  const [monthTransactions, setMonthTransactions] = useState<LaundryTransaction[] | null>(null);
+  const [visibleLimit, setVisibleLimit] = useState(0);
   const [reportClientName, setReportClientName] = useState("");
   const [reportKeterangan, setReportKeterangan] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
+  const [formRoomNumber, setFormRoomNumber] = useState("");
   const [formQuantityKg, setFormQuantityKg] = useState("1");
   const [formPriceInput, setFormPriceInput] = useState(formatThousands(15000));
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [error, setError] = useState("");
   const [transactionError, setTransactionError] = useState("");
-  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
+  const [isMonthLoading, setIsMonthLoading] = useState(true);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [isUpdatingTransaction, setIsUpdatingTransaction] = useState(false);
   const [isDeletingTransaction, setIsDeletingTransaction] = useState(false);
   const [isSavingPdf, setIsSavingPdf] = useState(false);
   const [isExportingXlsx, setIsExportingXlsx] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [totalTransactions, setTotalTransactions] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMoreTransactions, setHasMoreTransactions] = useState(false);
   const [isLoadingMoreTransactions, setIsLoadingMoreTransactions] = useState(false);
 
-  const fetchTransactionsList = useCallback(async (): Promise<LaundryTransaction[] | null> => {
-    const result = await fetchTransactionsPage(1, 100);
-    if (!result) {
-      return null;
-    }
-    setTotalTransactions(result.total);
-    setCurrentPage(result.page);
-    setHasMoreTransactions(result.page < result.totalPages);
-    return result.rows;
+  const resetActiveMonthView = useCallback(() => {
+    monthAbortRef.current?.abort();
+    monthAbortRef.current = null;
+    setMonthTransactions(null);
+    setVisibleLimit(0);
+    setTransactionError("");
+    setError("");
+    setIsLoadingMoreTransactions(false);
+    setIsMonthLoading(true);
   }, []);
+
+  const loadActiveMonthData = useCallback(
+    async (monthKey: string) => {
+      const requestId = ++monthRequestSequenceRef.current;
+      const controller = new AbortController();
+      monthAbortRef.current?.abort();
+      monthAbortRef.current = controller;
+      setIsMonthLoading(true);
+      setTransactionError("");
+
+      try {
+        const response = await getTransactionsRequest({
+          month: monthKey,
+          scope: "month",
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted || requestId !== monthRequestSequenceRef.current) {
+          return;
+        }
+        if (!response.ok) {
+          throw new Error("Failed to load month dataset.");
+        }
+
+        const payload = await getTransactionsPayload(response);
+        if (controller.signal.aborted || requestId !== monthRequestSequenceRef.current) {
+          return;
+        }
+
+        const nextTransactions = mapTransactionRows(payload.transactions);
+        setMonthTransactions(nextTransactions);
+        setVisibleLimit(Math.min(DEFAULT_VISIBLE_ROWS, nextTransactions.length));
+      } catch {
+        if (controller.signal.aborted || requestId !== monthRequestSequenceRef.current) {
+          return;
+        }
+        setMonthTransactions(null);
+        setVisibleLimit(0);
+        setTransactionError("Gagal memuat transaksi bulan aktif.");
+      } finally {
+        if (controller.signal.aborted || requestId !== monthRequestSequenceRef.current) {
+          return;
+        }
+        setIsMonthLoading(false);
+        if (monthAbortRef.current === controller) {
+          monthAbortRef.current = null;
+        }
+      }
+    },
+    [],
+  );
+
+  const handleSelectedMonthChange = useCallback(
+    (value: string) => {
+      if (!value || value === selectedMonth) {
+        return;
+      }
+      resetActiveMonthView();
+      setSelectedMonth(value);
+    },
+    [resetActiveMonthView, selectedMonth],
+  );
+
+  useEffect(() => {
+    if (isInitializing) {
+      return;
+    }
+    void loadActiveMonthData(selectedMonth);
+    return () => {
+      monthAbortRef.current?.abort();
+    };
+  }, [isInitializing, loadActiveMonthData, selectedMonth]);
 
   useEffect(() => {
     if (isInitializing) {
@@ -148,27 +163,21 @@ export default function ReportPage() {
       setReportPreferences({
         clientName: reportClientName,
         keterangan: reportKeterangan,
-        startDate: startDate || null,
-        endDate: endDate || null,
+        startDate: null,
+        endDate: null,
       });
     }, 250);
     return () => {
       window.clearTimeout(writeDelay);
     };
-  }, [reportClientName, reportKeterangan, startDate, endDate, isInitializing]);
+  }, [reportClientName, reportKeterangan, isInitializing]);
 
   const { onLogout } = useReportAuth({
     isInitializing,
     setIsInitializing,
-    setIsLoadingTransactions,
-    setTransactionError,
     setUsername,
-    setTransactionState,
     setReportClientName,
     setReportKeterangan,
-    setStartDate,
-    setEndDate,
-    fetchTransactionsList,
   });
 
   const {
@@ -176,20 +185,31 @@ export default function ReportPage() {
     monthlyTotal,
     dailySubtotalByDate,
     noteCountByDate,
+    searchFilteredTransactions,
     visibleTransactions,
     visibleDailySubtotalByDate,
     visibleNoteCountByDate,
     finalReportTitle,
     printKeterangan,
   } = useReportDerived({
-    transactions,
-    startDate,
-    endDate,
+    transactions: monthTransactions ?? [],
     searchQuery,
+    visibleLimit,
     reportClientName,
-    formDate,
+    selectedMonth,
     reportKeterangan,
   });
+
+  const hasMonthDataReady = monthTransactions !== null && !isMonthLoading;
+  const hasMonthError = Boolean(transactionError) && !hasMonthDataReady;
+  const selectedMonthLabel = useMemo(
+    () => formatMonthYearLabel(selectedMonth),
+    [selectedMonth],
+  );
+  const activeTransactionCount = sortedTransactions.length;
+  const visibleTransactionCount = visibleTransactions.length;
+  const hasMoreTransactions =
+    hasMonthDataReady && visibleTransactionCount < searchFilteredTransactions.length;
 
   const startInlineEdit = useCallback((transaction: LaundryTransaction) => {
     setEditDraft({
@@ -203,9 +223,13 @@ export default function ReportPage() {
     setError("");
   }, []);
 
+  const reloadActiveMonthData = useCallback(async () => {
+    await loadActiveMonthData(selectedMonth);
+  }, [loadActiveMonthData, selectedMonth]);
+
   const { onSubmitAdd, onSaveInlineEdit, onDeleteRow, performResetAll } =
     useReportTransactionsActions({
-      fetchTransactionsList,
+      reloadActiveMonthData,
       isCreatingTransaction,
       isUpdatingTransaction,
       isDeletingTransaction,
@@ -213,7 +237,8 @@ export default function ReportPage() {
       setIsUpdatingTransaction,
       setIsDeletingTransaction,
       setTransactionError,
-      setTransactionState,
+      setTransactionState: setMonthTransactions as unknown as (value: unknown) => void,
+      setVisibleLimit,
       setError,
       reportClientName,
       reportKeterangan,
@@ -223,8 +248,6 @@ export default function ReportPage() {
       formPriceInput,
       setReportClientName,
       setReportKeterangan,
-      setStartDate,
-      setEndDate,
       setFormDate,
       setFormRoomNumber,
       setFormQuantityKg,
@@ -233,10 +256,13 @@ export default function ReportPage() {
       setEditDraft,
     });
 
-  const onDownloadXLSX = async () => {
+  const onDownloadXLSX = useCallback(async () => {
+    if (!hasMonthDataReady) {
+      return;
+    }
     setIsExportingXlsx(true);
     try {
-      const { downloadReportXLSX } = await loadReportExportService();
+      const { downloadReportXLSX } = await import("@/lib/services/report-export");
       await downloadReportXLSX({
         rows: buildExportRowsData({
           sortedTransactions,
@@ -247,81 +273,72 @@ export default function ReportPage() {
         printKeterangan,
         monthlyTotal,
         username,
-        formatDateWITA,
+        formatDateWITA: () =>
+          new Intl.DateTimeFormat("id-ID", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          }).format(new Date()),
       });
     } finally {
       setIsExportingXlsx(false);
     }
-  };
+  }, [
+    dailySubtotalByDate,
+    hasMonthDataReady,
+    monthlyTotal,
+    noteCountByDate,
+    printKeterangan,
+    sortedTransactions,
+    username,
+  ]);
 
   const onPrint = useCallback(() => {
     window.print();
   }, []);
 
   const onSavePdf = useCallback(async () => {
-    if (!pdfExportRef.current) {
+    if (!hasMonthDataReady || !pdfExportRef.current) {
       return;
     }
     setIsSavingPdf(true);
     try {
-      const { saveReportPDF } = await loadReportExportService();
+      const { saveReportPDF } = await import("@/lib/services/report-export");
       pdfExportRef.current.setAttribute(
         "data-pdf-file-name",
-        getReportPdfFileName(visibleTransactions),
+        getReportPdfFileName(selectedMonthLabel),
       );
       await saveReportPDF(pdfExportRef.current);
     } finally {
       setIsSavingPdf(false);
     }
-  }, [visibleTransactions]);
+  }, [hasMonthDataReady, selectedMonthLabel]);
 
   const onResetAll = useCallback(() => {
     showResetAllConfirmation(performResetAll);
   }, [performResetAll]);
 
-  const onLoadMoreTransactions = useCallback(async () => {
-    if (!hasMoreTransactions || isLoadingMoreTransactions) {
+  const onLoadMoreTransactions = useCallback(() => {
+    if (!hasMoreTransactions || isLoadingMoreTransactions || !hasMonthDataReady) {
       return;
     }
     setIsLoadingMoreTransactions(true);
-    setTransactionError("");
-    try {
-      const nextPage = currentPage + 1;
-      const result = await fetchTransactionsPage(nextPage, 100);
-      if (!result) {
-        setTransactionError("Gagal memuat data tambahan.");
-        return;
-      }
-      setTransactionState((prev) => {
-        const existingIds = new Set(prev.map((item) => item.id));
-        const appended = result.rows.filter((item) => !existingIds.has(item.id));
-        if (appended.length === 0) {
-          return prev;
-        }
-        return [...prev, ...appended];
-      });
-      setTotalTransactions(result.total);
-      setCurrentPage(result.page);
-      setHasMoreTransactions(result.page < result.totalPages);
-    } catch {
-      setTransactionError("Gagal memuat data tambahan.");
-    } finally {
+    setVisibleLimit((prev) =>
+      Math.min(prev + LOAD_MORE_STEP, searchFilteredTransactions.length),
+    );
+    window.setTimeout(() => {
       setIsLoadingMoreTransactions(false);
-    }
-  }, [currentPage, hasMoreTransactions, isLoadingMoreTransactions]);
-
-  useEffect(() => {
-    if (transactions.length > totalTransactions) {
-      setTotalTransactions(transactions.length);
-    }
-  }, [transactions.length, totalTransactions]);
-
-  const activeClientCount = reportClientName.trim() ? 1 : 0;
-  const activeTransactionCount = sortedTransactions.length;
+    }, 0);
+  }, [
+    hasMonthDataReady,
+    hasMoreTransactions,
+    isLoadingMoreTransactions,
+    searchFilteredTransactions.length,
+  ]);
 
   if (isInitializing) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_20%_20%,#ecfeff,transparent_35%),#f8fafc] px-4 py-6">
+      <main className="flex min-h-screen items-center justify-center bg-[#f6f1e8] px-4 py-6">
         <div className="surface-card flex w-full max-w-sm flex-col items-center gap-3 p-6 text-center">
           <Spinner size="lg" />
           <p className="text-base font-semibold text-slate-900">Memuat dashboard...</p>
@@ -332,8 +349,8 @@ export default function ReportPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#ecfeff,transparent_32%),radial-gradient(circle_at_top_right,#cffafe,transparent_30%),#f8fafc] px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+    <main className="min-h-screen bg-[#f6f1e8] px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -342,6 +359,7 @@ export default function ReportPage() {
           <ReportTopbar
             username={username}
             reportClientName={reportClientName}
+            selectedMonthLabel={selectedMonthLabel}
             onLogout={onLogout}
           />
         </motion.div>
@@ -352,13 +370,17 @@ export default function ReportPage() {
           transition={{ duration: 0.3 }}
         >
           <ReportStats
-            monthlyTotal={monthlyTotal}
-            activeTransactionCount={activeTransactionCount}
-            activeClientCount={activeClientCount}
+            monthlyTotal={hasMonthDataReady ? monthlyTotal : null}
+            activeTransactionCount={hasMonthDataReady ? activeTransactionCount : null}
+            activeClientCount={reportClientName.trim() ? 1 : 0}
+            selectedMonthLabel={selectedMonthLabel}
+            isMonthLoading={isMonthLoading}
+            hasMonthError={hasMonthError}
+            monthErrorMessage={transactionError}
           />
         </motion.div>
 
-        <section className="rounded-2xl border border-slate-200/80 bg-white/70 p-3 sm:p-4">
+        <section className="rounded-2xl border border-[#e7ddd1]/80 bg-[#fbf8f4]/80 p-3 shadow-sm sm:p-4">
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
             <ReportTransactionForm
               onSubmitAdd={onSubmitAdd}
@@ -380,31 +402,32 @@ export default function ReportPage() {
             />
 
             <ReportTableSection
-              startDate={startDate}
-              endDate={endDate}
-              setStartDate={setStartDate}
-              setEndDate={setEndDate}
+              selectedMonth={selectedMonth}
+              selectedMonthLabel={selectedMonthLabel}
+              onSelectedMonthChange={handleSelectedMonthChange}
+              isMonthLoading={isMonthLoading}
+              isMonthReady={hasMonthDataReady}
+              hasMonthError={hasMonthError}
+              monthErrorMessage={transactionError}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               visibleTransactions={visibleTransactions}
-              sortedTransactions={sortedTransactions}
               onResetAll={onResetAll}
               onPrint={onPrint}
               onSavePdf={onSavePdf}
               onDownloadXLSX={onDownloadXLSX}
               isSavingPdf={isSavingPdf}
               isExportingXlsx={isExportingXlsx}
-              loadedCount={transactions.length}
-              totalAvailable={Math.max(totalTransactions, transactions.length)}
+              loadedCount={visibleTransactionCount}
+              totalAvailable={searchFilteredTransactions.length}
               hasMoreTransactions={hasMoreTransactions}
               onLoadMoreTransactions={onLoadMoreTransactions}
               isLoadingMoreTransactions={isLoadingMoreTransactions}
-              isLoadingTransactions={isLoadingTransactions}
               transactionError={transactionError}
               finalReportTitle={finalReportTitle}
               visibleDailySubtotalByDate={visibleDailySubtotalByDate}
               visibleNoteCountByDate={visibleNoteCountByDate}
-              monthlyTotal={monthlyTotal}
+              monthlyTotal={hasMonthDataReady ? monthlyTotal : 0}
               editDraft={editDraft}
               setEditDraft={setEditDraft}
               startInlineEdit={startInlineEdit}
@@ -419,15 +442,16 @@ export default function ReportPage() {
           </div>
         </section>
       </div>
+
       <ReportPdfPreview
         pdfExportRef={pdfExportRef}
         finalReportTitle={finalReportTitle}
-        startDate={startDate}
-        endDate={endDate}
+        selectedMonthLabel={selectedMonthLabel}
+        isMonthLoading={isMonthLoading}
         sortedTransactions={sortedTransactions}
         noteCountByDate={noteCountByDate}
         dailySubtotalByDate={dailySubtotalByDate}
-        monthlyTotal={monthlyTotal}
+        monthlyTotal={hasMonthDataReady ? monthlyTotal : 0}
       />
     </main>
   );

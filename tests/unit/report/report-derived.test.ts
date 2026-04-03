@@ -71,9 +71,9 @@ describe("report-derived utils", () => {
   it("builds combined derived report data", () => {
     const result = buildReportDerivedData({
       transactions,
-      startDate: "2026-03-01",
-      endDate: "2026-03-02",
       searchQuery: "a-",
+      visibleLimit: 2,
+      selectedMonth: "2026-03",
     });
     expect(result.sortedTransactions.length).toBe(3);
     expect(result.visibleTransactions.map((tx) => tx.id)).toEqual(["2", "1"]);
@@ -81,7 +81,7 @@ describe("report-derived utils", () => {
   });
 
   it("formats title and print note helpers", () => {
-    expect(getFinalReportTitle("Client A", "2026-03-01", "", "2026-03-01")).toContain("Client A");
+    expect(getFinalReportTitle("Client A", "2026-03")).toContain("Client A");
     expect(getPrintKeterangan("   ")).toBe("-");
   });
 });

@@ -4,7 +4,9 @@ import {
   AUTH_COOKIE_NAME,
   authCookieOptions,
   createSessionToken,
+  getAuthThrottleDayKey,
   hashPassword,
+  isLoginAttemptLimiterUnavailable,
   needsPasswordRehash,
   SESSION_MAX_AGE_SECONDS,
   verifyPassword,
@@ -13,18 +15,6 @@ import { prisma } from "@/lib/server/prisma";
 
 export const runtime = "nodejs";
 const MAX_FAILED_LOGIN_ATTEMPTS_PER_DAY = 5;
-
-function getDayKey(value: Date): string {
-  return value.toISOString().slice(0, 10);
-}
-
-function isMissingLoginAttemptTableError(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-  const maybeCode = (error as { code?: unknown }).code;
-  return maybeCode === "P2021";
-}
 
 function getLoginAttemptDelegate() {
   const client = prisma as unknown as {
@@ -37,17 +27,59 @@ function getLoginAttemptDelegate() {
   return client.loginAttempt;
 }
 
-async function runLoginAttemptOp<T>(
+function authResponse(
+  status: number,
+  code: string,
+  message: string,
+  fieldErrors?: Record<string, string>,
+) {
+  return NextResponse.json(
+    {
+      error: message,
+      message,
+      code,
+      ...(fieldErrors ? { fieldErrors } : {}),
+    },
+    { status },
+  );
+}
+
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+function logLimiterUnavailable(stage: string, error?: unknown) {
+  console.warn("[auth/login] limiter-unavailable", { stage, error });
+}
+
+async function runLimiterOp<T>(
   op: () => Promise<T>,
-  fallback: T,
-): Promise<T> {
+  stage: string,
+): Promise<
+  | { ok: true; value: T }
+  | { ok: false; unavailable: true; response?: ReturnType<typeof authResponse> }
+> {
   try {
-    return await op();
+    return { ok: true, value: await op() };
   } catch (error) {
-    if (!isMissingLoginAttemptTableError(error)) {
+    if (!isLoginAttemptLimiterUnavailable(error)) {
       throw error;
     }
-    return fallback;
+
+    logLimiterUnavailable(stage, error);
+    if (isProduction()) {
+      return {
+        ok: false,
+        unavailable: true,
+        response: authResponse(
+          503,
+          "AUTH_RATE_LIMITER_UNAVAILABLE",
+          "Login sedang tidak bisa diproses sementara. Coba lagi sebentar lagi.",
+        ),
+      };
+    }
+
+    return { ok: false, unavailable: true };
   }
 }
 
@@ -66,7 +98,14 @@ export async function POST(request: Request) {
       };
     } catch (error) {
       console.error("[auth/login] step=parse-body-failed", error);
-      return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+      return authResponse(
+        400,
+        "VALIDATION_ERROR",
+        "Data login belum lengkap atau belum valid.",
+        {
+          body: "Format data login tidak valid.",
+        },
+      );
     }
 
     console.log("[auth/login] step=parsed-body", {
@@ -74,21 +113,40 @@ export async function POST(request: Request) {
     });
 
     const username = body.username?.trim();
-    const password = body.password?.trim();
+    const password = body.password;
 
     if (!username || !password) {
       console.log("[auth/login] step=invalid-input");
-      return NextResponse.json(
-        { error: "Username and password are required." },
-        { status: 400 },
+      return authResponse(
+        400,
+        "VALIDATION_ERROR",
+        "Data login belum lengkap atau belum valid.",
+        {
+          ...(username ? {} : { username: "Username harus diisi." }),
+          ...(password ? {} : { password: "Password harus diisi." }),
+        },
       );
     }
 
-    const dayKey = getDayKey(new Date());
-    let attempt: { failedCount: number } | null = null;
     const loginAttemptDelegate = getLoginAttemptDelegate();
-    if (loginAttemptDelegate) {
-      attempt = await runLoginAttemptOp(
+    const dayKey = getAuthThrottleDayKey(new Date());
+    let limiterUnavailable = false;
+
+    if (!loginAttemptDelegate) {
+      logLimiterUnavailable("delegate-missing");
+      if (isProduction()) {
+        return authResponse(
+          503,
+          "AUTH_RATE_LIMITER_UNAVAILABLE",
+          "Login sedang tidak bisa diproses sementara. Coba lagi sebentar lagi.",
+        );
+      }
+      limiterUnavailable = true;
+    }
+
+    let attempt: { failedCount: number } | null = null;
+    if (loginAttemptDelegate && !limiterUnavailable) {
+      const result = await runLimiterOp(
         async () =>
           ((await loginAttemptDelegate.findUnique({
             where: {
@@ -101,13 +159,24 @@ export async function POST(request: Request) {
               failedCount: true,
             },
           })) as { failedCount: number } | null),
-        null,
+        "findUnique",
       );
+
+      if (!result.ok) {
+        if (result.response) {
+          return result.response;
+        }
+        limiterUnavailable = true;
+      } else {
+        attempt = result.value;
+      }
     }
+
     if ((attempt?.failedCount ?? 0) >= MAX_FAILED_LOGIN_ATTEMPTS_PER_DAY) {
-      return NextResponse.json(
-        { error: "Too many failed login attempts. Try again tomorrow." },
-        { status: 429 },
+      return authResponse(
+        429,
+        "AUTH_RATE_LIMITED",
+        "Terlalu banyak percobaan login. Coba lagi nanti.",
       );
     }
 
@@ -140,8 +209,8 @@ export async function POST(request: Request) {
     });
 
     if (!user || !passwordMatched) {
-      if (loginAttemptDelegate) {
-        await runLoginAttemptOp(
+      if (loginAttemptDelegate && !limiterUnavailable) {
+        const result = await runLimiterOp(
           async () =>
             loginAttemptDelegate.upsert({
               where: {
@@ -161,12 +230,27 @@ export async function POST(request: Request) {
                 failedCount: 1,
               },
             }),
-          null,
+          "upsert",
+        );
+
+        if (!result.ok) {
+          if (result.response) {
+            return result.response;
+          }
+          limiterUnavailable = true;
+        }
+      }
+      if (limiterUnavailable && isProduction()) {
+        return authResponse(
+          503,
+          "AUTH_RATE_LIMITER_UNAVAILABLE",
+          "Login sedang tidak bisa diproses sementara. Coba lagi sebentar lagi.",
         );
       }
-      return NextResponse.json(
-        { error: "Invalid username or password." },
-        { status: 401 },
+      return authResponse(
+        401,
+        "AUTH_INVALID_CREDENTIALS",
+        "Username atau password salah.",
       );
     }
 
@@ -175,6 +259,9 @@ export async function POST(request: Request) {
       typeof hashPassword === "function" &&
       needsPasswordRehash(user.passwordHash)
     ) {
+      console.warn("[auth/login] step=legacy-password-rehash", {
+        userId: user.id,
+      });
       try {
         const userDelegate = prisma.user as unknown as {
           update?: (...args: unknown[]) => Promise<unknown>;
@@ -192,8 +279,8 @@ export async function POST(request: Request) {
       }
     }
 
-    if (loginAttemptDelegate) {
-      await runLoginAttemptOp(
+    if (loginAttemptDelegate && !limiterUnavailable) {
+      const result = await runLimiterOp(
         async () =>
           loginAttemptDelegate.deleteMany({
             where: {
@@ -201,7 +288,22 @@ export async function POST(request: Request) {
               dayKey,
             },
           }),
-        null,
+        "deleteMany",
+      );
+
+      if (!result.ok) {
+        if (result.response) {
+          return result.response;
+        }
+        limiterUnavailable = true;
+      }
+    }
+
+    if (limiterUnavailable && isProduction()) {
+      return authResponse(
+        503,
+        "AUTH_RATE_LIMITER_UNAVAILABLE",
+        "Login sedang tidak bisa diproses sementara. Coba lagi sebentar lagi.",
       );
     }
 
@@ -244,6 +346,10 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     console.error("[auth/login] step=unhandled-failed", error);
-    return NextResponse.json({ error: "Failed to login." }, { status: 500 });
+    return authResponse(
+      500,
+      "AUTH_INTERNAL_ERROR",
+      "Terjadi kendala pada sistem. Coba lagi.",
+    );
   }
 }

@@ -40,28 +40,26 @@ const transactions = [
 ];
 
 describe("useReportDerived", () => {
-  it("applies date filter and sorting deterministically", () => {
+  it("sorts the active month data deterministically", () => {
     const result = useReportDerived({
       transactions,
-      startDate: "2026-03-01",
-      endDate: "2026-03-31",
       searchQuery: "",
+      visibleLimit: 10,
       reportClientName: "Client A",
-      formDate: "2026-03-15",
+      selectedMonth: "2026-03",
       reportKeterangan: "Catatan",
     });
 
     expect(result.sortedTransactions.map((tx) => tx.id)).toEqual(["t2", "t1", "t3"]);
   });
 
-  it("applies search logic on sorted transactions", () => {
+  it("applies search logic on the active month dataset", () => {
     const result = useReportDerived({
       transactions,
-      startDate: "2026-03-01",
-      endDate: "2026-03-31",
       searchQuery: "beta",
+      visibleLimit: 10,
       reportClientName: "Client A",
-      formDate: "2026-03-15",
+      selectedMonth: "2026-03",
       reportKeterangan: "Catatan",
     });
 
@@ -71,11 +69,10 @@ describe("useReportDerived", () => {
   it("calculates monthly total, subtotals, and note counts", () => {
     const result = useReportDerived({
       transactions,
-      startDate: "2026-03-01",
-      endDate: "2026-03-31",
       searchQuery: "",
+      visibleLimit: 10,
       reportClientName: "Client A",
-      formDate: "2026-03-15",
+      selectedMonth: "2026-03",
       reportKeterangan: "Catatan",
     });
 
@@ -85,16 +82,16 @@ describe("useReportDerived", () => {
     expect(result.noteCountByDate.get("t2")).toBe(1);
     expect(result.noteCountByDate.get("t1")).toBe(2);
     expect(result.noteCountByDate.get("t3")).toBe(1);
+    expect(result.sortedTransactions.some((tx) => tx.id === "t4")).toBe(false);
   });
 
   it("returns visible maps based on filtered search results", () => {
     const result = useReportDerived({
       transactions,
-      startDate: "2026-03-01",
-      endDate: "2026-03-31",
       searchQuery: "a-",
+      visibleLimit: 2,
       reportClientName: "Client A",
-      formDate: "2026-03-15",
+      selectedMonth: "2026-03",
       reportKeterangan: "Catatan",
     });
 

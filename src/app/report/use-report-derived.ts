@@ -9,29 +9,27 @@ import { LaundryTransaction } from "@/types/laundry";
 
 interface UseReportDerivedParams {
   transactions: LaundryTransaction[];
-  startDate: string;
-  endDate: string;
   searchQuery: string;
+  visibleLimit: number;
   reportClientName: string;
-  formDate: string;
+  selectedMonth: string;
   reportKeterangan: string;
 }
 
 export function useReportDerived({
   transactions,
-  startDate,
-  endDate,
   searchQuery,
+  visibleLimit,
   reportClientName,
-  formDate,
+  selectedMonth,
   reportKeterangan,
 }: UseReportDerivedParams) {
   const {
-    filteredTransactions,
     sortedTransactions,
     monthlyTotal,
     dailySubtotalByDate,
     noteCountByDate,
+    searchFilteredTransactions,
     visibleTransactions,
     visibleDailySubtotalByDate,
     visibleNoteCountByDate,
@@ -39,21 +37,21 @@ export function useReportDerived({
     () =>
       buildReportDerivedData({
         transactions,
-        startDate,
-        endDate,
         searchQuery,
+        visibleLimit,
+        selectedMonth,
       }),
-    [transactions, startDate, endDate, searchQuery],
+    [transactions, searchQuery, visibleLimit, selectedMonth],
   );
-  const finalReportTitle = getFinalReportTitle(reportClientName, startDate, endDate, formDate);
+  const finalReportTitle = getFinalReportTitle(reportClientName, selectedMonth);
   const printKeterangan = getPrintKeterangan(reportKeterangan);
 
   return {
-    filteredTransactions,
     sortedTransactions,
     monthlyTotal,
     dailySubtotalByDate,
     noteCountByDate,
+    searchFilteredTransactions,
     visibleTransactions,
     visibleDailySubtotalByDate,
     visibleNoteCountByDate,

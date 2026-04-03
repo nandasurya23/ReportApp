@@ -1,20 +1,6 @@
-const mockedStateQueue: unknown[] = [];
-const useStateMock = jest.fn((initial: unknown) => {
-  const value =
-    typeof initial === "function" ? (initial as () => unknown)() : initial;
-  const setter = jest.fn();
-  return [value, setter];
-});
+/** @jest-environment jsdom */
 
-jest.mock("react", () => ({
-  useState: (...args: unknown[]) => {
-    const next = mockedStateQueue.shift();
-    if (next !== undefined) {
-      return next;
-    }
-    return useStateMock(args[0]);
-  },
-}));
+import { renderHook } from "@testing-library/react";
 
 const getRememberedUsernameMock = jest.fn();
 const hasRememberedUsernameMock = jest.fn();
@@ -28,8 +14,6 @@ import { useLoginForm } from "@/app/login/use-login-form";
 
 describe("useLoginForm", () => {
   beforeEach(() => {
-    mockedStateQueue.length = 0;
-    useStateMock.mockClear();
     getRememberedUsernameMock.mockReset();
     hasRememberedUsernameMock.mockReset();
   });
@@ -38,20 +22,24 @@ describe("useLoginForm", () => {
     getRememberedUsernameMock.mockReturnValue("pelunk");
     hasRememberedUsernameMock.mockReturnValue(true);
 
-    const result = useLoginForm({ rememberUsernameKey: "remember-key" });
+    const { result } = renderHook(() =>
+      useLoginForm({ rememberUsernameKey: "remember-key" }),
+    );
 
     expect(getRememberedUsernameMock).toHaveBeenCalledWith("remember-key");
     expect(hasRememberedUsernameMock).toHaveBeenCalledWith("remember-key");
-    expect(result.username).toBe("pelunk");
-    expect(result.rememberMe).toBe(true);
+    expect(result.current.username).toBe("pelunk");
+    expect(result.current.rememberMe).toBe(true);
   });
 
   it("returns validation error from current username/password state", () => {
     getRememberedUsernameMock.mockReturnValue("");
     hasRememberedUsernameMock.mockReturnValue(false);
-    mockedStateQueue.push(["", jest.fn()], ["", jest.fn()], [false, jest.fn()], [false, jest.fn()]);
 
-    const result = useLoginForm({ rememberUsernameKey: "remember-key" });
-    expect(result.getValidationError()).toBe("Username dan password wajib diisi.");
+    const { result } = renderHook(() =>
+      useLoginForm({ rememberUsernameKey: "remember-key" }),
+    );
+
+    expect(result.current.getValidationError()).toBe("Data login belum lengkap atau belum valid.");
   });
 });

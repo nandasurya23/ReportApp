@@ -4,6 +4,9 @@ interface LoginApiPayload {
   user?: {
     username?: string;
   };
+  code?: string;
+  message?: string;
+  fieldErrors?: Record<string, string>;
   error?: string;
 }
 

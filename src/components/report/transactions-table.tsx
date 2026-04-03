@@ -2,8 +2,9 @@
 
 import { memo, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { FiEdit2, FiSave, FiTrash2, FiX } from "react-icons/fi";
+import { Check, PencilLine, Trash2, X } from "lucide-react";
 
+import { IconChip } from "@/components/report/icon-chip";
 import { formatIDR } from "@/lib/utils/currency";
 import { formatISODateToLongID } from "@/lib/utils/date";
 import { getDailyTotal, getDailyTotalFromValues } from "@/lib/utils/laundry";
@@ -85,10 +86,10 @@ function TransactionRowComponent({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2 }}
-      className={`transition-colors ${isEditing ? "bg-amber-50 ring-1 ring-inset ring-amber-300" : "bg-white"} text-slate-900`}
+      className={`transition-colors ${isEditing ? "bg-slate-50 ring-1 ring-inset ring-slate-200" : "bg-white"} text-slate-900`}
     >
-      <td className="border border-slate-300 px-3 py-2 align-top">{index + 1}</td>
-      <td className="border border-slate-300 px-3 py-2 align-top">
+      <td className="border border-slate-200 px-3 py-2.5 align-top">{index + 1}</td>
+      <td className="border border-slate-200 px-3 py-2.5 align-top">
         {isEditing ? (
           <input
             type="date"
@@ -102,10 +103,10 @@ function TransactionRowComponent({
           showDateGroup ? formatISODateToLongID(transaction.date) : ""
         )}
       </td>
-      <td className="border border-slate-300 px-3 py-2 text-center align-top">
+      <td className="border border-slate-200 px-3 py-2.5 text-center align-top">
         {noteCountByDate.get(transaction.id) ?? 0}
       </td>
-      <td className="border border-slate-300 px-3 py-2 text-center align-top">
+      <td className="border border-slate-200 px-3 py-2.5 text-center align-top">
         {isEditing ? (
           <input
             type="text"
@@ -119,7 +120,7 @@ function TransactionRowComponent({
           transaction.roomNumber
         )}
       </td>
-      <td className="border border-slate-300 px-3 py-2 text-center align-top">
+      <td className="border border-slate-200 px-3 py-2.5 text-center align-top">
         {isEditing ? (
           <input
             type="text"
@@ -144,7 +145,7 @@ function TransactionRowComponent({
           transaction.quantityKg
         )}
       </td>
-      <td className="border border-slate-300 px-3 py-2 text-right align-top">
+      <td className="border border-slate-200 px-3 py-2.5 text-right align-top">
         {isEditing ? (
           <input
             type="text"
@@ -166,13 +167,13 @@ function TransactionRowComponent({
           formatIDR(transaction.pricePerKg)
         )}
       </td>
-      <td className="border border-slate-300 px-3 py-2 text-right align-top font-semibold text-slate-900">
+      <td className="border border-slate-200 px-3 py-2.5 text-right align-top font-semibold text-slate-900">
         {formatIDR(rowTotal)}
       </td>
-      <td className="border border-slate-300 px-3 py-2 text-right align-top">
+      <td className="border border-slate-200 px-3 py-2.5 text-right align-top">
         {showDateGroup ? formatIDR(dailySubtotalByDate.get(transaction.date) ?? 0) : ""}
       </td>
-      <td className="border border-slate-300 px-3 py-2 align-top">
+      <td className="border border-slate-200 px-3 py-2.5 align-top">
         {isEditing ? (
           <input
             type="text"
@@ -186,7 +187,7 @@ function TransactionRowComponent({
           showDateGroup ? transaction.clientName : ""
         )}
       </td>
-      <td className="border border-slate-300 px-2.5 py-2 align-top">
+      <td className="border border-slate-200 px-2.5 py-2.5 align-top">
         <div className="no-print-content flex flex-wrap items-center justify-center gap-1.5">
           <AnimatePresence mode="wait" initial={false}>
             {isEditing ? (
@@ -201,17 +202,21 @@ function TransactionRowComponent({
                 <button
                   type="button"
                   onClick={onSaveInlineEdit}
-                  className="btn inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-medium text-white shadow-sm"
+                  className="btn inline-flex items-center gap-1 rounded-md border border-[#6d5d50]/20 bg-[#3a332d] px-2.5 py-1 text-[11px] font-medium text-[#f7f1e8]"
                 >
-                  <FiSave className="text-[11px]" />
+                  <IconChip tone="slate" className="h-5 w-5 border-white/10 bg-white/10 text-[#f7f1e8]">
+                    <Check className="size-[13px]" strokeWidth={2.8} />
+                  </IconChip>
                   Simpan
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditDraft(null)}
-                  className="btn ml-1.5 inline-flex items-center gap-1 rounded-md bg-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700 shadow-sm"
+                  className="btn ml-1.5 inline-flex items-center gap-1 rounded-md border border-[#e7ddd1] bg-[#fbf8f4] px-2.5 py-1 text-[11px] font-medium text-[#5b4f44]"
                 >
-                  <FiX className="text-[11px]" />
+                  <IconChip tone="slate" className="h-5 w-5 border-[#e7ddd1] bg-[#f8f1e8] text-[#6d5d50]">
+                    <X className="size-[13px]" strokeWidth={2.8} />
+                  </IconChip>
                   Batal
                 </button>
               </motion.div>
@@ -224,9 +229,11 @@ function TransactionRowComponent({
                 transition={{ duration: 0.2 }}
                 type="button"
                 onClick={handleStartEdit}
-                className="btn inline-flex items-center gap-1 overflow-hidden rounded-md bg-sky-600 px-2 py-1 text-[11px] font-medium text-white shadow-sm"
+                className="btn inline-flex items-center gap-1 overflow-hidden rounded-md border border-[#e7ddd1] bg-[#fbf8f4] px-2.5 py-1 text-[11px] font-medium text-[#5b4f44]"
               >
-                <FiEdit2 className="text-[11px]" />
+                <IconChip tone="slate" className="h-5 w-5 border-[#e7ddd1] bg-[#f8f1e8] text-[#6d5d50]">
+                  <PencilLine className="size-[13px]" strokeWidth={2.8} />
+                </IconChip>
                 Edit
               </motion.button>
             )}
@@ -234,9 +241,11 @@ function TransactionRowComponent({
           <button
             type="button"
             onClick={handleDelete}
-            className="btn inline-flex items-center gap-1 rounded-md bg-rose-600 px-2 py-1 text-[11px] font-medium text-white shadow-sm"
+            className="btn inline-flex items-center gap-1 rounded-md border border-rose-200 bg-[#fff5f2] px-2.5 py-1 text-[11px] font-medium text-rose-700"
           >
-            <FiTrash2 className="text-[11px]" />
+            <IconChip tone="rose" className="h-5 w-5 border-[#ead4ce] bg-[#fff5f2] text-[#a35f52]">
+              <Trash2 className="size-[13px]" strokeWidth={2.8} />
+            </IconChip>
             Hapus
           </button>
         </div>
@@ -276,7 +285,7 @@ export function TransactionsTable({
   formatPriceInput,
 }: TransactionsTableProps) {
   return (
-    <table className="report-table min-w-290 border-collapse border border-slate-300 bg-white text-[13px] text-slate-700">
+    <table className="report-table min-w-290 border-collapse border border-slate-200 bg-white text-[13px] text-slate-700">
       <colgroup>
         <col className="w-17.5" />
         <col className="w-45" />
@@ -290,35 +299,35 @@ export function TransactionsTable({
         <col className="w-31.5" />
       </colgroup>
       <thead>
-        <tr className="bg-slate-200 text-left text-slate-900">
-          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
+        <tr className="bg-slate-100 text-left text-slate-900">
+          <th className="sticky top-0 z-10 border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em]">
             Nomer
           </th>
-          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
+          <th className="sticky top-0 z-10 border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em]">
             Tanggal
           </th>
-          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+          <th className="sticky top-0 z-10 border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-center">
             Jumlah Nota
           </th>
-          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+          <th className="sticky top-0 z-10 border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-center">
             No Kamar
           </th>
-          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+          <th className="sticky top-0 z-10 border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-center">
             Satuan
           </th>
-          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+          <th className="sticky top-0 z-10 border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-center">
             Harga
           </th>
-          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">
+          <th className="sticky top-0 z-10 border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-right">
             Harga Total Harian
           </th>
-          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-right">
+          <th className="sticky top-0 z-10 border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-right">
             Total Keseluruhan
           </th>
-          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide">
+          <th className="sticky top-0 z-10 border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em]">
             Keterangan
           </th>
-          <th className="sticky top-0 z-10 border border-slate-300 bg-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-center">
+          <th className="sticky top-0 z-10 border border-slate-200 bg-slate-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-center">
             Aksi
           </th>
         </tr>

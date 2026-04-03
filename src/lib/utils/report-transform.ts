@@ -62,10 +62,11 @@ export function parseQuantityInput(raw: string): number {
   if (!normalized) {
     return 0;
   }
-  if (!/^\d+(\.\d)?$/.test(normalized)) {
+  const decimalNormalized = normalized.replace(",", ".");
+  if (!/^\d+(\.\d)?$/.test(decimalNormalized)) {
     return Number.NaN;
   }
-  return Number(normalized);
+  return Number(decimalNormalized);
 }
 
 export function buildExportRows(params: {

@@ -85,14 +85,17 @@ describe("useLoginAuth", () => {
         password=""
         rememberMe={false}
         rememberUsernameKey="remember-key"
-        getValidationError={() => "Username dan password wajib diisi."}
+        getValidationError={() => "Data login belum lengkap atau belum valid."}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => {
-      expect(applyLoginErrorMock).toHaveBeenCalledWith(expect.any(Function), "Username dan password wajib diisi.");
+      expect(applyLoginErrorMock).toHaveBeenCalledWith(
+        expect.any(Function),
+        "Data login belum lengkap atau belum valid.",
+      );
     });
     expect(loginRequestMock).not.toHaveBeenCalled();
   });
@@ -129,7 +132,10 @@ describe("useLoginAuth", () => {
 
   it("handles failed auth payload with error message", async () => {
     loginRequestMock.mockResolvedValue({ ok: false });
-    getLoginPayloadMock.mockResolvedValue({ error: "Invalid username or password." });
+    getLoginPayloadMock.mockResolvedValue({
+      code: "AUTH_INVALID_CREDENTIALS",
+      message: "Username atau password salah.",
+    });
 
     render(
       <Harness
@@ -144,7 +150,10 @@ describe("useLoginAuth", () => {
     fireEvent.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => {
-      expect(applyLoginErrorMock).toHaveBeenCalledWith(expect.any(Function), "Invalid username or password.");
+      expect(applyLoginErrorMock).toHaveBeenCalledWith(
+        expect.any(Function),
+        "Username atau password salah.",
+      );
     });
     expect(routerPushMock).not.toHaveBeenCalled();
   });

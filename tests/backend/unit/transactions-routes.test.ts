@@ -79,7 +79,7 @@ describe("transactions routes", () => {
 
   it("creates new transaction when no duplicate exists", async () => {
     getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
-    prismaMock.transaction.findFirst.mockResolvedValueOnce(null);
+    prismaMock.transaction.findMany.mockResolvedValueOnce([]);
     prismaMock.transaction.create.mockResolvedValue({
       id: "tx-new",
       date: new Date("2026-03-16T00:00:00.000Z"),
@@ -111,25 +111,27 @@ describe("transactions routes", () => {
     expect(prismaMock.transaction.create).toHaveBeenCalled();
   });
 
-  it("returns existing transaction when duplicate create payload is found", async () => {
+  it("returns conflict when create payload matches same date and room after normalization", async () => {
     getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
-    prismaMock.transaction.findFirst.mockResolvedValueOnce({
-      id: "tx-dup",
-      date: new Date("2026-03-16T00:00:00.000Z"),
-      roomNumber: "A-02",
-      clientName: "Client B",
-      quantityKg: 1.5,
-      pricePerKg: 7000,
-      createdAt: new Date("2026-03-16T01:00:00.000Z"),
-      updatedAt: new Date("2026-03-16T02:00:00.000Z"),
-    });
+    prismaMock.transaction.findMany.mockResolvedValueOnce([
+      {
+        id: "tx-dup",
+        date: new Date("2026-03-16T00:00:00.000Z"),
+        roomNumber: " 8072   a ",
+        clientName: "Client B",
+        quantityKg: 1.5,
+        pricePerKg: 7000,
+        createdAt: new Date("2026-03-16T01:00:00.000Z"),
+        updatedAt: new Date("2026-03-16T02:00:00.000Z"),
+      },
+    ]);
 
     const request = new Request("http://localhost/api/transactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         date: "2026-03-16",
-        roomNumber: "A-02",
+        roomNumber: "8072 A",
         clientName: "Client B",
         quantityKg: 1.5,
         pricePerKg: 7000,
@@ -137,11 +139,71 @@ describe("transactions routes", () => {
     }) as never;
 
     const response = await postTransaction(request);
-    const body = (await response.json()) as { transaction?: { id: string } };
+    const body = (await response.json()) as { code?: string; message?: string };
 
-    expect(response.status).toBe(200);
-    expect(body.transaction?.id).toBe("tx-dup");
-    expect(prismaMock.transaction.create).not.toHaveBeenCalled();
+    expect(response.status).toBe(409);
+    expect(body.code).toBe("TRANSACTION_CONFLICT");
+    expect(body.message).toContain("tanggal dan kamar ini sudah ada");
+  });
+
+  it("allows same room code on a different date", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+    prismaMock.transaction.findMany.mockResolvedValueOnce([]);
+    prismaMock.transaction.create.mockResolvedValue({
+      id: "tx-new",
+      date: new Date("2026-03-17T00:00:00.000Z"),
+      roomNumber: "8072 A",
+      clientName: "Client B",
+      quantityKg: 1.5,
+      pricePerKg: 7000,
+      createdAt: new Date("2026-03-17T01:00:00.000Z"),
+      updatedAt: new Date("2026-03-17T02:00:00.000Z"),
+    });
+
+    const request = new Request("http://localhost/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        date: "2026-03-17",
+        roomNumber: "8072 A",
+        clientName: "Client B",
+        quantityKg: 1.5,
+        pricePerKg: 7000,
+      }),
+    }) as never;
+
+    const response = await postTransaction(request);
+    expect(response.status).toBe(201);
+  });
+
+  it("returns field-level validation errors for invalid create payload", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+    const request = new Request("http://localhost/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        date: "",
+        roomNumber: "",
+        clientName: "",
+        quantityKg: 0,
+        pricePerKg: -1,
+      }),
+    }) as never;
+
+    const response = await postTransaction(request);
+    const body = (await response.json()) as { code?: string; fieldErrors?: Record<string, string> };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("VALIDATION_ERROR");
+    expect(body.fieldErrors).toEqual(
+      expect.objectContaining({
+        date: expect.any(String),
+        roomNumber: expect.any(String),
+        clientName: expect.any(String),
+        quantityKg: expect.any(String),
+        pricePerKg: expect.any(String),
+      }),
+    );
   });
 
   it("updates transaction when PATCH payload is valid", async () => {
@@ -156,6 +218,7 @@ describe("transactions routes", () => {
         pricePerKg: 5000,
       })
       .mockResolvedValueOnce(null);
+    prismaMock.transaction.findMany.mockResolvedValueOnce([]);
     prismaMock.transaction.update.mockResolvedValue({
       id: "tx-1",
       date: new Date("2026-03-15T00:00:00.000Z"),
@@ -179,6 +242,114 @@ describe("transactions routes", () => {
     expect(response.status).toBe(200);
     expect(body.transaction?.roomNumber).toBe("A-03");
     expect(prismaMock.transaction.update).toHaveBeenCalled();
+  });
+
+  it("returns conflict when PATCH changes room to an existing same-day room", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+    prismaMock.transaction.findFirst.mockResolvedValueOnce({
+      id: "tx-1",
+      date: new Date("2026-03-18T00:00:00.000Z"),
+      roomNumber: "8072 A",
+      clientName: "Client A",
+      quantityKg: 2,
+      pricePerKg: 5000,
+    });
+    prismaMock.transaction.findMany.mockResolvedValueOnce([
+      {
+        id: "tx-other",
+        date: new Date("2026-03-18T00:00:00.000Z"),
+        roomNumber: " 8072   a ",
+        clientName: "Client B",
+        quantityKg: 1,
+        pricePerKg: 6000,
+        createdAt: new Date("2026-03-18T01:00:00.000Z"),
+        updatedAt: new Date("2026-03-18T02:00:00.000Z"),
+      },
+    ]);
+
+    const request = new Request("http://localhost/api/transactions/tx-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomNumber: "8072 A" }),
+    }) as never;
+
+    const response = await patchTransaction(request, { params: Promise.resolve({ id: "tx-1" }) });
+    const body = (await response.json()) as { code?: string; message?: string };
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe("TRANSACTION_CONFLICT");
+    expect(body.message).toContain("tanggal dan kamar ini sudah ada");
+  });
+
+  it("returns conflict when PATCH changes date into an existing same-room day", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+    prismaMock.transaction.findFirst.mockResolvedValueOnce({
+      id: "tx-1",
+      date: new Date("2026-03-18T00:00:00.000Z"),
+      roomNumber: "8072 A",
+      clientName: "Client A",
+      quantityKg: 2,
+      pricePerKg: 5000,
+    });
+    prismaMock.transaction.findMany.mockResolvedValueOnce([
+      {
+        id: "tx-other",
+        date: new Date("2026-03-19T00:00:00.000Z"),
+        roomNumber: "8072 a",
+        clientName: "Client B",
+        quantityKg: 1,
+        pricePerKg: 6000,
+        createdAt: new Date("2026-03-19T01:00:00.000Z"),
+        updatedAt: new Date("2026-03-19T02:00:00.000Z"),
+      },
+    ]);
+
+    const request = new Request("http://localhost/api/transactions/tx-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: "2026-03-19" }),
+    }) as never;
+
+    const response = await patchTransaction(request, { params: Promise.resolve({ id: "tx-1" }) });
+    expect(response.status).toBe(409);
+  });
+
+  it("returns 400 when PATCH body has no updatable fields", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+    prismaMock.transaction.findFirst.mockResolvedValueOnce({
+      id: "tx-1",
+      date: new Date("2026-03-18T00:00:00.000Z"),
+      roomNumber: "8072 A",
+      clientName: "Client A",
+      quantityKg: 2,
+      pricePerKg: 5000,
+    });
+
+    const request = new Request("http://localhost/api/transactions/tx-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    }) as never;
+
+    const response = await patchTransaction(request, { params: Promise.resolve({ id: "tx-1" }) });
+    const body = (await response.json()) as { code?: string; message?: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("NO_UPDATABLE_FIELDS");
+  });
+
+  it("returns 404 when PATCH target is not found", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+    prismaMock.transaction.findFirst.mockResolvedValueOnce(null);
+
+    const request = new Request("http://localhost/api/transactions/tx-missing", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomNumber: "A-99" }),
+    }) as never;
+
+    const response = await patchTransaction(request, { params: Promise.resolve({ id: "tx-missing" }) });
+    expect(response.status).toBe(404);
   });
 
   it("deletes transaction by id", async () => {
@@ -214,5 +385,15 @@ describe("transactions routes", () => {
     expect(prismaMock.transaction.deleteMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
     });
+  });
+
+  it("returns 500 for safe mocked failure case", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+    prismaMock.transaction.count.mockRejectedValue(new Error("db down"));
+    const request = new Request("http://localhost/api/transactions") as never;
+    const response = await getTransactions(request);
+    const body = (await response.json()) as { code?: string; message?: string };
+    expect(response.status).toBe(500);
+    expect(body.code).toBe("INTERNAL_SERVER_ERROR");
   });
 });

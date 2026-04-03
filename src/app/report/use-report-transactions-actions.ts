@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent } from "react";
+import { FormEvent, useRef } from "react";
 import { toast } from "sonner";
 
 import { setReportPreferences } from "@/lib/storage/local-storage";
@@ -38,7 +38,7 @@ type TransactionRow = {
 };
 
 interface UseReportTransactionsActionsParams {
-  fetchTransactionsList: () => Promise<TransactionRow[] | null>;
+  reloadActiveMonthData: () => Promise<void>;
   isCreatingTransaction: boolean;
   isUpdatingTransaction: boolean;
   isDeletingTransaction: boolean;
@@ -47,6 +47,7 @@ interface UseReportTransactionsActionsParams {
   setIsDeletingTransaction: (value: boolean) => void;
   setTransactionError: (value: string) => void;
   setTransactionState: (value: TransactionRow[] | ((prev: TransactionRow[]) => TransactionRow[])) => void;
+  setVisibleLimit: (value: number | ((prev: number) => number)) => void;
   setError: (value: string) => void;
   reportClientName: string;
   reportKeterangan: string;
@@ -56,8 +57,6 @@ interface UseReportTransactionsActionsParams {
   formPriceInput: string;
   setReportClientName: (value: string) => void;
   setReportKeterangan: (value: string) => void;
-  setStartDate: (value: string) => void;
-  setEndDate: (value: string) => void;
   setFormDate: (value: string) => void;
   setFormRoomNumber: (value: string) => void;
   setFormQuantityKg: (value: string) => void;
@@ -67,7 +66,7 @@ interface UseReportTransactionsActionsParams {
 }
 
 export function useReportTransactionsActions({
-  fetchTransactionsList,
+  reloadActiveMonthData,
   isCreatingTransaction,
   isUpdatingTransaction,
   isDeletingTransaction,
@@ -76,6 +75,7 @@ export function useReportTransactionsActions({
   setIsDeletingTransaction,
   setTransactionError,
   setTransactionState,
+  setVisibleLimit,
   setError,
   reportClientName,
   reportKeterangan,
@@ -85,8 +85,6 @@ export function useReportTransactionsActions({
   formPriceInput,
   setReportClientName,
   setReportKeterangan,
-  setStartDate,
-  setEndDate,
   setFormDate,
   setFormRoomNumber,
   setFormQuantityKg,
@@ -94,6 +92,8 @@ export function useReportTransactionsActions({
   editDraft,
   setEditDraft,
 }: UseReportTransactionsActionsParams) {
+  const createInFlightRef = useRef(false);
+
   const mapTransactionFromPayload = (payload: unknown) => {
     const raw = (payload as { transaction?: unknown })?.transaction;
     if (!raw || typeof raw !== "object") {
@@ -103,22 +103,9 @@ export function useReportTransactionsActions({
     return mapped[0] ?? null;
   };
 
-  const reloadTransactions = async (onFailedMessage: string, fallbackToEmpty = false) => {
-    const nextTransactions = await fetchTransactionsList();
-    if (nextTransactions) {
-      setTransactionState(nextTransactions);
-      return;
-    }
-    if (fallbackToEmpty) {
-      setTransactionState([]);
-      return;
-    }
-    setTransactionError(onFailedMessage);
-  };
-
   const onSubmitAdd = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isCreatingTransaction) {
+    if (isCreatingTransaction || createInFlightRef.current) {
       return;
     }
 
@@ -140,6 +127,7 @@ export function useReportTransactionsActions({
     }
 
     try {
+      createInFlightRef.current = true;
       setIsCreatingTransaction(true);
       setTransactionError("");
       const createResponse = await createTransactionRequest({
@@ -170,8 +158,10 @@ export function useReportTransactionsActions({
           return [...prev, createdTransaction];
         });
       } else {
-        await reloadTransactions("Transaksi berhasil ditambah, tapi gagal memuat ulang data.");
+        await reloadActiveMonthData();
       }
+
+      setVisibleLimit((prev) => prev + 1);
 
       setFormDate(new Date().toISOString().slice(0, 10));
       setFormRoomNumber("");
@@ -185,6 +175,7 @@ export function useReportTransactionsActions({
       setTransactionError(failedMessage);
       toast.error(failedMessage);
     } finally {
+      createInFlightRef.current = false;
       setIsCreatingTransaction(false);
     }
   };
@@ -244,8 +235,10 @@ export function useReportTransactionsActions({
           return prev.map((item) => (item.id === updatedTransaction.id ? updatedTransaction : item));
         });
       } else {
-        await reloadTransactions("Transaksi berhasil diupdate, tapi gagal memuat ulang data.");
+        await reloadActiveMonthData();
       }
+
+      setVisibleLimit((prev) => prev + 1);
 
       setEditDraft(null);
       setError("");
@@ -311,7 +304,7 @@ export function useReportTransactionsActions({
         return;
       }
 
-      await reloadTransactions("", true);
+      await reloadActiveMonthData();
 
       setReportPreferences({
         clientName: "",
@@ -321,8 +314,6 @@ export function useReportTransactionsActions({
       });
       setReportClientName("");
       setReportKeterangan("");
-      setStartDate("");
-      setEndDate("");
       setFormDate(today);
       setFormRoomNumber("");
       setFormQuantityKg("1");

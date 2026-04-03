@@ -29,7 +29,13 @@ export interface TransactionApiError {
   error?: string;
 }
 
-export async function getTransactionsRequest(params?: { page?: number; limit?: number }) {
+export async function getTransactionsRequest(params?: {
+  page?: number;
+  limit?: number;
+  month?: string;
+  scope?: "page" | "month";
+  signal?: AbortSignal;
+}) {
   const query = new URLSearchParams();
   if (params?.page && params.page > 0) {
     query.set("page", String(params.page));
@@ -37,12 +43,19 @@ export async function getTransactionsRequest(params?: { page?: number; limit?: n
   if (params?.limit && params.limit > 0) {
     query.set("limit", String(params.limit));
   }
+  if (params?.month) {
+    query.set("month", params.month);
+  }
+  if (params?.scope) {
+    query.set("scope", params.scope);
+  }
   const queryString = query.toString();
   const url = queryString ? `/api/transactions?${queryString}` : "/api/transactions";
   return fetch(url, {
     method: "GET",
     credentials: "include",
     cache: "no-store",
+    signal: params?.signal,
   });
 }
 

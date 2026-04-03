@@ -1,5 +1,5 @@
 import { getDailyTotal, getMonthlyTotal } from "@/lib/utils/laundry";
-import { formatISODateToLongID } from "@/lib/utils/date";
+import { formatISODateToLongID, formatMonthYearLabel } from "@/lib/utils/date";
 import { LaundryTransaction } from "@/types/laundry";
 
 export function filterTransactions(
@@ -68,16 +68,9 @@ export function getNoteCountByDate(sortedTransactions: LaundryTransaction[]): Ma
 
 export function getFinalReportTitle(
   reportClientName: string,
-  startDate: string,
-  endDate: string,
-  formDate: string,
+  selectedMonth: string,
 ): string {
-  const activeDateContext = startDate || endDate || formDate;
-  const activeDate = new Date(`${activeDateContext}T00:00:00`);
-  const activeMonthYear = Number.isNaN(activeDate.getTime())
-    ? new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(new Date())
-    : new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(activeDate);
-  return `Laporan ${reportClientName.trim() || "Nama Client"} - ${activeMonthYear}`;
+  return `Laporan ${reportClientName.trim() || "Nama Client"} - ${formatMonthYearLabel(selectedMonth)}`;
 }
 
 export function getPrintKeterangan(reportKeterangan: string): string {
@@ -108,31 +101,38 @@ export function filterTransactionsBySearch(
   });
 }
 
+export function filterTransactionsBySelectedMonth(
+  transactions: LaundryTransaction[],
+  selectedMonth: string,
+): LaundryTransaction[] {
+  if (!selectedMonth) {
+    return transactions;
+  }
+  return transactions.filter((transaction) => transaction.date.startsWith(selectedMonth));
+}
+
 export function buildReportDerivedData(params: {
   transactions: LaundryTransaction[];
-  startDate: string;
-  endDate: string;
   searchQuery: string;
+  visibleLimit: number;
+  selectedMonth: string;
 }) {
-  const filteredTransactions = filterTransactions(
-    params.transactions,
-    params.startDate,
-    params.endDate,
-  );
-  const sortedTransactions = sortTransactions(filteredTransactions);
+  const monthTransactions = filterTransactionsBySelectedMonth(params.transactions, params.selectedMonth);
+  const sortedTransactions = sortTransactions(monthTransactions);
   const monthlyTotal = getMonthlyTotalFromTransactions(sortedTransactions);
   const dailySubtotalByDate = getDailySubtotalByDate(sortedTransactions);
   const noteCountByDate = getNoteCountByDate(sortedTransactions);
-  const visibleTransactions = filterTransactionsBySearch(sortedTransactions, params.searchQuery);
+  const searchFilteredTransactions = filterTransactionsBySearch(sortedTransactions, params.searchQuery);
+  const visibleTransactions = searchFilteredTransactions.slice(0, params.visibleLimit);
   const visibleDailySubtotalByDate = getDailySubtotalByDate(visibleTransactions);
   const visibleNoteCountByDate = getNoteCountByDate(visibleTransactions);
 
   return {
-    filteredTransactions,
     sortedTransactions,
     monthlyTotal,
     dailySubtotalByDate,
     noteCountByDate,
+    searchFilteredTransactions,
     visibleTransactions,
     visibleDailySubtotalByDate,
     visibleNoteCountByDate,
