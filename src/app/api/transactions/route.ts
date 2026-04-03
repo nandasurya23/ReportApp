@@ -176,8 +176,8 @@ export async function POST(request: NextRequest) {
 
     const normalizedQuantityKg = normalizeOneDecimalQuantity(quantityKg);
     const normalizedPricePerKg = Math.round(pricePerKg);
-    const businessDate = getBusinessDateKey(date);
-    const { start, end } = getDayBounds(date);
+    const businessDate = getBusinessDateKey(date!);
+    const { start, end } = getDayBounds(date!);
 
     const existingTransactions = await prisma.transaction.findMany({
       where: {
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
     const normalizedIncomingRoom = normalizeRoomCodeForComparison(roomNumber);
     const conflictingTransaction = existingTransactions.find(
       (transaction) =>
-        getBusinessDateKey(transaction.date) === businessDate &&
+        transaction.date && getBusinessDateKey(transaction.date) === businessDate &&
         normalizeRoomCodeForComparison(transaction.roomNumber) === normalizedIncomingRoom,
     );
 
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
     const transaction = await prisma.transaction.create({
       data: {
         userId: auth.userId,
-        date,
+        date: date!,
         roomNumber,
         clientName,
         quantityKg: normalizedQuantityKg,

@@ -175,8 +175,8 @@ export async function PATCH(
 
     const finalDate = data.date ?? existing.date;
     const finalRoomNumber = data.roomNumber ?? existing.roomNumber;
-    const finalBusinessDate = getBusinessDateKey(finalDate);
-    const { start, end } = getDayBounds(finalDate);
+    const finalBusinessDate = getBusinessDateKey(finalDate!);
+    const { start, end } = getDayBounds(finalDate!);
 
     const candidateTransactions = await prisma.transaction.findMany({
       where: {
@@ -194,7 +194,7 @@ export async function PATCH(
     const normalizedFinalRoom = normalizeRoomCodeForComparison(finalRoomNumber);
     const conflictingTransaction = candidateTransactions.find(
       (transaction) =>
-        getBusinessDateKey(transaction.date) === finalBusinessDate &&
+        transaction.date && getBusinessDateKey(transaction.date) === finalBusinessDate &&
         normalizeRoomCodeForComparison(transaction.roomNumber) === normalizedFinalRoom,
     );
 
