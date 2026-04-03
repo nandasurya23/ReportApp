@@ -165,12 +165,20 @@ beforeEach(() => {
     expect(body.message).toBe("Terlalu banyak percobaan login. Coba lagi nanti.");
   });
 
-  it("fails closed in production when limiter dependency is unavailable", async () => {
+  it("continues login in production when limiter dependency is unavailable", async () => {
     Object.defineProperty(process.env, "NODE_ENV", {
       value: "production",
       configurable: true,
     });
     prismaMock.loginAttempt.findUnique.mockRejectedValue({ code: "P2021" });
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      username: "pelunk",
+      passwordHash: "hashed",
+    });
+    verifyPasswordMock.mockReturnValue(true);
+    createSessionTokenMock.mockReturnValue("token-123");
+    prismaMock.session.create.mockResolvedValue({});
 
     const request = new Request("http://localhost/api/auth/login", {
       method: "POST",
@@ -179,11 +187,18 @@ beforeEach(() => {
     });
 
     const response = await POST(request);
-    const body = (await response.json()) as { code?: string; message?: string };
+    const body = (await response.json()) as { user?: { username?: string } };
 
-    expect(response.status).toBe(503);
-    expect(body.code).toBe("AUTH_RATE_LIMITER_UNAVAILABLE");
-    expect(body.message).toBe("Login sedang tidak bisa diproses sementara. Coba lagi sebentar lagi.");
+    expect(response.status).toBe(200);
+    expect(body.user?.username).toBe("pelunk");
+    expect(consoleWarnMock).toHaveBeenCalledWith(
+      "[auth/login] auth-rate-limiter-degraded",
+      expect.objectContaining({
+        route: "POST /api/auth/login",
+        environment: "production",
+        stage: "findUnique",
+      }),
+    );
   });
 
   it("continues in non-production when limiter dependency is unavailable", async () => {

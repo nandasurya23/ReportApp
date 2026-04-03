@@ -44,12 +44,13 @@ function authResponse(
   );
 }
 
-function isProduction(): boolean {
-  return process.env.NODE_ENV === "production";
-}
-
-function logLimiterUnavailable(stage: string, error?: unknown) {
-  console.warn("[auth/login] limiter-unavailable", { stage, error });
+function logLimiterDegraded(stage: string, error?: unknown) {
+  console.warn("[auth/login] auth-rate-limiter-degraded", {
+    route: "POST /api/auth/login",
+    environment: process.env.NODE_ENV,
+    stage,
+    error,
+  });
 }
 
 async function runLimiterOp<T>(
@@ -57,7 +58,7 @@ async function runLimiterOp<T>(
   stage: string,
 ): Promise<
   | { ok: true; value: T }
-  | { ok: false; unavailable: true; response?: ReturnType<typeof authResponse> }
+  | { ok: false; unavailable: true }
 > {
   try {
     return { ok: true, value: await op() };
@@ -66,19 +67,7 @@ async function runLimiterOp<T>(
       throw error;
     }
 
-    logLimiterUnavailable(stage, error);
-    if (isProduction()) {
-      return {
-        ok: false,
-        unavailable: true,
-        response: authResponse(
-          503,
-          "AUTH_RATE_LIMITER_UNAVAILABLE",
-          "Login sedang tidak bisa diproses sementara. Coba lagi sebentar lagi.",
-        ),
-      };
-    }
-
+    logLimiterDegraded(stage, error);
     return { ok: false, unavailable: true };
   }
 }
@@ -133,14 +122,7 @@ export async function POST(request: Request) {
     let limiterUnavailable = false;
 
     if (!loginAttemptDelegate) {
-      logLimiterUnavailable("delegate-missing");
-      if (isProduction()) {
-        return authResponse(
-          503,
-          "AUTH_RATE_LIMITER_UNAVAILABLE",
-          "Login sedang tidak bisa diproses sementara. Coba lagi sebentar lagi.",
-        );
-      }
+      logLimiterDegraded("delegate-missing");
       limiterUnavailable = true;
     }
 
@@ -163,9 +145,6 @@ export async function POST(request: Request) {
       );
 
       if (!result.ok) {
-        if (result.response) {
-          return result.response;
-        }
         limiterUnavailable = true;
       } else {
         attempt = result.value;
@@ -234,18 +213,8 @@ export async function POST(request: Request) {
         );
 
         if (!result.ok) {
-          if (result.response) {
-            return result.response;
-          }
           limiterUnavailable = true;
         }
-      }
-      if (limiterUnavailable && isProduction()) {
-        return authResponse(
-          503,
-          "AUTH_RATE_LIMITER_UNAVAILABLE",
-          "Login sedang tidak bisa diproses sementara. Coba lagi sebentar lagi.",
-        );
       }
       return authResponse(
         401,
@@ -292,19 +261,8 @@ export async function POST(request: Request) {
       );
 
       if (!result.ok) {
-        if (result.response) {
-          return result.response;
-        }
         limiterUnavailable = true;
       }
-    }
-
-    if (limiterUnavailable && isProduction()) {
-      return authResponse(
-        503,
-        "AUTH_RATE_LIMITER_UNAVAILABLE",
-        "Login sedang tidak bisa diproses sementara. Coba lagi sebentar lagi.",
-      );
     }
 
     const token = createSessionToken();
