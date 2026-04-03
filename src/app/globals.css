@@ -1,53 +1,53 @@
 @import "tailwindcss";
 
 :root {
-  --font-geist-sans:
+  --font-plus-jakarta-sans:
     "Segoe UI", "Helvetica Neue", Helvetica, Arial, "Noto Sans", sans-serif;
-  --font-geist-mono:
+  --font-ibm-plex-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
-  --background: #ffffff;
-  --foreground: #171717;
-  --brand-50: #ecfeff;
-  --brand-100: #cffafe;
-  --brand-500: #06b6d4;
-  --brand-600: #0891b2;
-  --ink-50: #f8fafc;
-  --ink-100: #f1f5f9;
-  --ink-200: #e2e8f0;
-  --ink-300: #cbd5e1;
-  --ink-500: #64748b;
-  --ink-700: #334155;
-  --ink-900: #0f172a;
+  --background: #f6f1e8;
+  --foreground: #2f2a25;
+  --brand-50: #f8f1e8;
+  --brand-100: #eadfce;
+  --brand-500: #8f7b68;
+  --brand-600: #6e5b49;
+  --ink-50: #fbf8f4;
+  --ink-100: #f5efe8;
+  --ink-200: #e7ddd1;
+  --ink-300: #d8ccbc;
+  --ink-500: #8a7764;
+  --ink-700: #5b4f44;
+  --ink-900: #2f2a25;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-plus-jakarta-sans);
+  --font-mono: var(--font-ibm-plex-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #2f2a25;
+    --foreground: #f5efe8;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+  font-family: var(--font-plus-jakarta-sans), "Segoe UI", sans-serif;
 }
 
 .surface-card {
-  border: 1px solid #dbe4ee;
-  background: #ffffff;
+  border: 1px solid #e7ddd1;
+  background: rgba(251, 248, 244, 0.94);
   border-radius: 1.05rem;
   box-shadow:
-    0 12px 30px -18px rgba(15, 23, 42, 0.26),
-    0 2px 10px rgba(15, 23, 42, 0.05);
+    0 12px 28px -22px rgba(47, 42, 37, 0.16),
+    0 1px 2px rgba(47, 42, 37, 0.04);
 }
 
 .field-label {
@@ -61,8 +61,8 @@ body {
 .input-field {
   width: 100%;
   border-radius: 0.75rem;
-  border: 1px solid var(--ink-300);
-  background: white;
+  border: 1px solid #e0d6c8;
+  background: #fbf8f4;
   padding: 0.58rem 0.75rem;
   color: var(--ink-900);
   outline: none;
@@ -73,9 +73,9 @@ body {
 }
 
 .input-field:focus {
-  border-color: var(--brand-500);
-  box-shadow: 0 0 0 3px rgba(186, 230, 253, 0.7);
-  background: #ffffff;
+  border-color: #c8b8a6;
+  box-shadow: 0 0 0 3px rgba(143, 123, 104, 0.16);
+  background: #fcfaf7;
 }
 
 .input-leading-icon {
@@ -84,7 +84,7 @@ body {
   left: 0.85rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: #9b8977;
   font-size: 0.95rem;
   line-height: 1;
 }
@@ -94,7 +94,7 @@ body {
 }
 
 .input-with-icon::placeholder {
-  color: #94a3b8;
+  color: #a59584;
 }
 
 .btn {
@@ -111,25 +111,25 @@ body {
     border-color 0.15s ease,
     box-shadow 0.15s ease,
     opacity 0.15s ease;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 2px rgba(47, 42, 37, 0.05);
 }
 
 .btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px -8px rgba(15, 23, 42, 0.35);
+  box-shadow: 0 8px 20px -14px rgba(47, 42, 37, 0.22);
 }
 
 .btn:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 3px rgba(186, 230, 253, 0.85),
-    0 6px 14px -8px rgba(15, 23, 42, 0.35);
+    0 0 0 3px rgba(143, 123, 104, 0.18),
+    0 8px 20px -14px rgba(47, 42, 37, 0.22);
 }
 
 .btn:disabled {
   cursor: not-allowed;
   transform: none;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(47, 42, 37, 0.04);
 }
 
 button,
@@ -146,7 +146,7 @@ input[type="checkbox"] {
 }
 
 a:hover {
-  color: #0f172a;
+  color: #2f2a25;
 }
 
 button:active,
@@ -156,8 +156,8 @@ button:active,
 
 .surface-card:hover {
   box-shadow:
-    0 16px 34px -22px rgba(15, 23, 42, 0.28),
-    0 3px 12px rgba(15, 23, 42, 0.06);
+    0 16px 30px -24px rgba(47, 42, 37, 0.18),
+    0 2px 8px rgba(47, 42, 37, 0.05);
 }
 
 .btn-primary {
@@ -167,7 +167,7 @@ button:active,
 }
 
 .btn-primary:hover {
-  background: #1e293b;
+  background: #3a332d;
 }
 
 @media print {
@@ -181,8 +181,8 @@ button:active,
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: #fbf8f4 !important;
+    color: #2f2a25 !important;
   }
 
   .no-print {
@@ -212,8 +212,8 @@ button:active,
     min-width: 0 !important;
     table-layout: fixed !important;
     border-collapse: collapse !important;
-    border: 1px solid #cbd5e1 !important;
-    border-color: #cbd5e1 !important;
+    border: 1px solid #e0d6c8 !important;
+    border-color: #e0d6c8 !important;
   }
 
   .report-table col {
@@ -241,7 +241,7 @@ button:active,
     font-size: 9px !important;
     padding: 5px 6px !important;
     line-height: 1.25 !important;
-    border: 1px solid #cbd5e1 !important;
+    border: 1px solid #e0d6c8 !important;
   }
 
   .report-table col:last-child {
@@ -271,7 +271,7 @@ button:active,
   border: 1px solid #cbd5e1 !important;
   border-radius: 14px !important;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14) !important;
-  font-family: var(--font-geist-sans), "Segoe UI", sans-serif !important;
+  font-family: var(--font-plus-jakarta-sans), "Segoe UI", sans-serif !important;
   overflow: hidden !important;
 }
 
@@ -308,13 +308,13 @@ button:active,
 
 .react-datepicker__day--selected,
 .react-datepicker__day--keyboard-selected {
-  background: #0284c7 !important;
-  color: #ffffff !important;
+  background: #8f7b68 !important;
+  color: #fbf8f4 !important;
   border-radius: 10px !important;
 }
 
 .react-datepicker__day:hover {
-  background: #e2e8f0 !important;
+  background: #f0e5d7 !important;
   border-radius: 10px !important;
 }
 

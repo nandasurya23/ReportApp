@@ -2,7 +2,7 @@
 
 import { FormEvent } from "react";
 import { motion } from "framer-motion";
-import { FiEdit3, FiHome, FiPackage, FiPlus, FiTag, FiUsers } from "react-icons/fi";
+import { Plus } from "lucide-react";
 
 import { CustomDatePicker } from "@/components/report/custom-date-picker";
 import { Spinner } from "@/components/ui/spinner";
@@ -50,123 +50,111 @@ export function ReportTransactionForm({
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.35, delay: 0.05 }}
       onSubmit={onSubmitAdd}
-      className="surface-card no-print h-fit p-4 sm:p-5 xl:sticky xl:top-6"
+      className="no-print h-fit rounded-2xl border border-[#e7ddd1]/60 bg-[#fbf8f4]/90 p-4 shadow-sm sm:p-5 xl:sticky xl:top-6"
     >
-      <div className="mb-4 border-b border-slate-200 pb-3">
-        <h2 className="text-lg font-semibold text-slate-900">Form Transaksi</h2>
-        <p className="mt-1 text-xs text-slate-600">Isi data harian untuk akumulasi laporan bulanan.</p>
+      <div className="border-b border-[#e7ddd1] pb-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a7764]">
+          Entry transaksi
+        </p>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight text-[#2f2a25]">Form Transaksi</h2>
+        <p className="mt-1 text-sm text-[#6d5d50]">
+          Isi data harian untuk akumulasi laporan bulanan.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3">
-        <div className="rounded-xl border border-slate-200/90 bg-slate-50/50 p-3">
+      <div className="grid grid-cols-1 gap-4 pt-4">
+        <div className="rounded-2xl border border-[#e7ddd1]/50 bg-[#f8f1e8]/50 p-3">
           <CustomDatePicker id="date" value={formDate} label="Tanggal" onChange={setFormDate} />
         </div>
 
-        <div className="rounded-xl border border-slate-200/90 bg-white p-3">
-          <label htmlFor="room-number" className="field-label flex items-center gap-1.5">
-            <FiHome className="text-slate-500" />
-            No Kamar
-          </label>
-          <div className="relative">
-            <FiHome className="input-leading-icon" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <label htmlFor="room-number" className="field-label">
+              No Kamar
+            </label>
             <input
               id="room-number"
               type="text"
               value={formRoomNumber}
               onChange={(event) => setFormRoomNumber(event.target.value)}
-              className="input-field input-with-icon"
+              className="input-field border-transparent bg-[#fbf8f4] shadow-none focus:border-[#e7ddd1]"
               placeholder="Contoh: A-12"
             />
           </div>
-        </div>
 
-        <div className="rounded-xl border border-slate-200/90 bg-white p-3">
-          <label htmlFor="client-name" className="field-label flex items-center gap-1.5">
-            <FiUsers className="text-slate-500" />
-            Nama Client (diisi sekali)
-          </label>
-          <div className="relative">
-            <FiUsers className="input-leading-icon" />
-            <input
-              id="client-name"
-              type="text"
-              value={reportClientName}
-              onChange={(event) => setReportClientName(event.target.value)}
-              className="input-field input-with-icon"
-              placeholder="Contoh: John Doe"
-            />
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-200/90 bg-white p-3">
-          <label htmlFor="keterangan" className="field-label flex items-center gap-1.5">
-            <FiEdit3 className="text-slate-500" />
-            Keterangan (diisi sekali)
-          </label>
-          <div className="relative">
-            <FiEdit3 className="input-leading-icon" />
-            <input
-              id="keterangan"
-              type="text"
-              value={reportKeterangan}
-              onChange={(event) => setReportKeterangan(event.target.value)}
-              className="input-field input-with-icon"
-              placeholder='Contoh: "bawa hari minggu"'
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-slate-200/90 bg-white p-3">
-            <label htmlFor="qty" className="field-label flex items-center gap-1.5">
-              <FiPackage className="text-slate-500" />
+          <div className="space-y-2">
+            <label htmlFor="qty" className="field-label">
               Satuan
             </label>
-            <div className="relative">
-              <FiPackage className="input-leading-icon" />
-              <input
-                id="qty"
-                type="text"
-                inputMode="decimal"
-                value={formQuantityKg}
-                onChange={(event) => {
-                  const nextValue = event.target.value.trim().replace(/,/g, ".");
-                  if (nextValue === "") {
-                    setFormQuantityKg("");
-                    return;
-                  }
-                  if (!/^\d*(\.\d?)?$/.test(nextValue)) {
-                    return;
-                  }
-                  setFormQuantityKg(nextValue);
-                }}
-                className="input-field input-with-icon"
-                placeholder="Contoh: 1,5 atau 1.5"
-              />
-            </div>
+            <input
+              id="qty"
+              type="text"
+              inputMode="decimal"
+              value={formQuantityKg}
+              onChange={(event) => {
+                const nextValue = event.target.value.trim().replace(/,/g, ".");
+                if (nextValue === "") {
+                  setFormQuantityKg("");
+                  return;
+                }
+                if (!/^\d*(\.\d?)?$/.test(nextValue)) {
+                  return;
+                }
+                setFormQuantityKg(nextValue);
+              }}
+              className="input-field border-transparent bg-[#fbf8f4] shadow-none focus:border-[#e7ddd1]"
+              placeholder="Contoh: 1,5 atau 1.5"
+            />
           </div>
-          <div className="rounded-xl border border-slate-200/90 bg-white p-3">
-            <label htmlFor="price" className="field-label flex items-center gap-1.5">
-              <FiTag className="text-slate-500" />
-              Harga
-            </label>
-            <div className="relative">
-              <FiTag className="input-leading-icon" />
-              <input
-                id="price"
-                type="text"
-                inputMode="numeric"
-                value={formPriceInput}
-                onChange={(event) => setFormPriceInput(formatPriceInput(event.target.value))}
-                className="input-field input-with-icon"
-                placeholder="Contoh: 1.000.000"
-              />
-            </div>
-          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="client-name" className="field-label">
+            Nama Client
+          </label>
+          <p className="-mt-1 text-xs text-[#6d5d50]">Diisi sekali untuk laporan bulan aktif.</p>
+          <input
+            id="client-name"
+            type="text"
+            value={reportClientName}
+            onChange={(event) => setReportClientName(event.target.value)}
+            className="input-field border-transparent bg-[#fbf8f4] shadow-none focus:border-[#e7ddd1]"
+            placeholder="Contoh: John Doe"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="keterangan" className="field-label">
+            Keterangan
+          </label>
+          <p className="-mt-1 text-xs text-[#6d5d50]">Diisi sekali untuk catatan laporan bulan aktif.</p>
+          <input
+            id="keterangan"
+            type="text"
+            value={reportKeterangan}
+            onChange={(event) => setReportKeterangan(event.target.value)}
+            className="input-field border-transparent bg-[#fbf8f4] shadow-none focus:border-[#e7ddd1]"
+            placeholder='Contoh: "bawa hari minggu"'
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="price" className="field-label">
+            Harga
+          </label>
+          <input
+            id="price"
+            type="text"
+            inputMode="numeric"
+            value={formPriceInput}
+            onChange={(event) => setFormPriceInput(formatPriceInput(event.target.value))}
+            className="input-field border-transparent bg-[#fbf8f4] shadow-none focus:border-[#e7ddd1]"
+            placeholder="Contoh: 1.000.000"
+          />
         </div>
       </div>
 
-      {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mt-4 rounded-lg border border-rose-200 bg-[#fff5f2] px-3 py-2 text-sm text-rose-700">{error}</p>}
 
       <button
         type="submit"
@@ -174,7 +162,7 @@ export function ReportTransactionForm({
         className="btn btn-primary mt-4 flex w-full items-center justify-center gap-2 py-2.5"
       >
         {isCreatingTransaction && <Spinner size="sm" className="border-slate-200 border-t-white" />}
-        <FiPlus className="text-base" />
+        <Plus className="size-[15px]" strokeWidth={2.6} />
         {isCreatingTransaction ? "Menyimpan..." : "Tambah"}
       </button>
     </motion.form>

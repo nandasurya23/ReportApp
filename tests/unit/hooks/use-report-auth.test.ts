@@ -57,41 +57,20 @@ describe("useReportAuth", () => {
     getReportPreferencesMock.mockReturnValue({
       clientName: "Client A",
       keterangan: "Catatan",
-      startDate: "2026-03-01",
-      endDate: "2026-03-31",
+      startDate: null,
+      endDate: null,
     });
     const setIsInitializing = jest.fn();
-    const setIsLoadingTransactions = jest.fn();
-    const setTransactionError = jest.fn();
     const setUsername = jest.fn();
-    const setTransactionState = jest.fn();
     const setReportClientName = jest.fn();
     const setReportKeterangan = jest.fn();
-    const setStartDate = jest.fn();
-    const setEndDate = jest.fn();
-    const fetchTransactionsList = jest.fn().mockResolvedValue([
-      {
-        id: "1",
-        date: "2026-03-01",
-        roomNumber: "A-01",
-        clientName: "Client A",
-        quantityKg: 1,
-        pricePerKg: 1000,
-      },
-    ]);
 
     useReportAuth({
       isInitializing: true,
       setIsInitializing,
-      setIsLoadingTransactions,
-      setTransactionError,
       setUsername,
-      setTransactionState,
       setReportClientName,
       setReportKeterangan,
-      setStartDate,
-      setEndDate,
-      fetchTransactionsList,
     });
 
     await flushPromises();
@@ -99,20 +78,8 @@ describe("useReportAuth", () => {
 
     expect(setAuthSessionFromUsernameMock).toHaveBeenCalledWith("pelunk");
     expect(setUsername).toHaveBeenCalledWith("pelunk");
-    expect(setTransactionState).toHaveBeenCalledWith([
-      {
-        id: "1",
-        date: "2026-03-01",
-        roomNumber: "A-01",
-        clientName: "Client A",
-        quantityKg: 1,
-        pricePerKg: 1000,
-      },
-    ]);
     expect(setReportClientName).toHaveBeenCalledWith("Client A");
     expect(setReportKeterangan).toHaveBeenCalledWith("Catatan");
-    expect(setStartDate).toHaveBeenCalledWith("2026-03-01");
-    expect(setEndDate).toHaveBeenCalledWith("2026-03-31");
     expect(setIsInitializing).toHaveBeenCalledWith(false);
   });
 
@@ -124,15 +91,9 @@ describe("useReportAuth", () => {
     useReportAuth({
       isInitializing: true,
       setIsInitializing,
-      setIsLoadingTransactions: jest.fn(),
-      setTransactionError: jest.fn(),
       setUsername: jest.fn(),
-      setTransactionState: jest.fn(),
       setReportClientName: jest.fn(),
       setReportKeterangan: jest.fn(),
-      setStartDate: jest.fn(),
-      setEndDate: jest.fn(),
-      fetchTransactionsList: jest.fn(),
     });
 
     await flushPromises();
@@ -151,15 +112,9 @@ describe("useReportAuth", () => {
     const result = useReportAuth({
       isInitializing: true,
       setIsInitializing: jest.fn(),
-      setIsLoadingTransactions: jest.fn(),
-      setTransactionError: jest.fn(),
       setUsername: jest.fn(),
-      setTransactionState: jest.fn(),
       setReportClientName: jest.fn(),
       setReportKeterangan: jest.fn(),
-      setStartDate: jest.fn(),
-      setEndDate: jest.fn(),
-      fetchTransactionsList: jest.fn(),
     });
 
     await result.onLogout();

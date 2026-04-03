@@ -13,6 +13,10 @@ export function compactText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
+export function normalizeRoomCodeForComparison(value: string): string {
+  return compactText(value).toLowerCase();
+}
+
 export function parseDate(value: string): Date | null {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -35,6 +39,44 @@ export function parseDate(value: string): Date | null {
     return null;
   }
   return date;
+}
+
+export function parseMonthKey(value: string): Date | null {
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}$/.test(trimmed)) {
+    return null;
+  }
+  const [year, month] = trimmed.split("-").map(Number);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+    return null;
+  }
+  const date = new Date(Date.UTC(year, month - 1, 1));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1) {
+    return null;
+  }
+  return date;
+}
+
+export function getMonthBounds(monthKey: string): { start: Date; end: Date } | null {
+  const start = parseMonthKey(monthKey);
+  if (!start) {
+    return null;
+  }
+  const end = new Date(start.getTime());
+  end.setUTCMonth(end.getUTCMonth() + 1);
+  return { start, end };
+}
+
+export function getDayBounds(date: Date): { start: Date; end: Date } {
+  const start = new Date(date.getTime());
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(start.getTime());
+  end.setUTCDate(end.getUTCDate() + 1);
+  return { start, end };
+}
+
+export function getBusinessDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 export function isValidOneDecimalQuantity(value: number): boolean {

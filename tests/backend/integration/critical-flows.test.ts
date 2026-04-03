@@ -9,6 +9,7 @@ const prismaMock = {
   },
   transaction: {
     findFirst: jest.fn(),
+    findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -40,6 +41,9 @@ jest.mock("@/lib/server/auth", () => ({
   createSessionToken: () => createSessionTokenMock(),
   SESSION_MAX_AGE_SECONDS: 60,
   verifyPassword: (...args: unknown[]) => verifyPasswordMock(...args),
+  getAuthThrottleDayKey: () => "2026-03-15",
+  isLoginAttemptLimiterUnavailable: (error: unknown) =>
+    Boolean(error && typeof error === "object" && (error as { code?: string }).code === "P2021"),
   clearAuthCookie: (response: Response) => response,
   unauthorizedResponse: () =>
     new Response(JSON.stringify({ error: "Unauthorized." }), { status: 401 }),
@@ -62,6 +66,7 @@ describe("backend integration critical flows", () => {
     prismaMock.session.findFirst.mockReset();
     prismaMock.session.deleteMany.mockReset();
     prismaMock.transaction.findFirst.mockReset();
+    prismaMock.transaction.findMany.mockReset();
     prismaMock.transaction.create.mockReset();
     prismaMock.transaction.update.mockReset();
     prismaMock.transaction.delete.mockReset();
@@ -122,7 +127,7 @@ describe("backend integration critical flows", () => {
   it("transaction flow: create -> update -> delete", async () => {
     getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
 
-    prismaMock.transaction.findFirst.mockResolvedValueOnce(null);
+    prismaMock.transaction.findMany.mockResolvedValueOnce([]);
     prismaMock.transaction.create.mockResolvedValue({
       id: "tx-1",
       date: new Date("2026-03-15T00:00:00.000Z"),
@@ -156,8 +161,8 @@ describe("backend integration critical flows", () => {
         clientName: "Client A",
         quantityKg: 2,
         pricePerKg: 5000,
-      })
-      .mockResolvedValueOnce(null);
+      });
+    prismaMock.transaction.findMany.mockResolvedValueOnce([]);
     prismaMock.transaction.update.mockResolvedValue({
       id: "tx-1",
       date: new Date("2026-03-15T00:00:00.000Z"),

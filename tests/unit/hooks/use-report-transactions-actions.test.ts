@@ -1,3 +1,8 @@
+/** @jest-environment jsdom */
+
+import { act, renderHook } from "@testing-library/react";
+import type { FormEvent } from "react";
+
 const toastErrorMock = jest.fn();
 const toastSuccessMock = jest.fn();
 
@@ -31,7 +36,7 @@ import { useReportTransactionsActions } from "@/app/report/use-report-transactio
 
 describe("useReportTransactionsActions", () => {
   const baseParams = () => ({
-    fetchTransactionsList: jest.fn(),
+    reloadActiveMonthData: jest.fn(),
     isCreatingTransaction: false,
     isUpdatingTransaction: false,
     isDeletingTransaction: false,
@@ -40,6 +45,7 @@ describe("useReportTransactionsActions", () => {
     setIsDeletingTransaction: jest.fn(),
     setTransactionError: jest.fn(),
     setTransactionState: jest.fn(),
+    setVisibleLimit: jest.fn(),
     setError: jest.fn(),
     reportClientName: "Client A",
     reportKeterangan: "Catatan",
@@ -49,8 +55,6 @@ describe("useReportTransactionsActions", () => {
     formPriceInput: "5.000",
     setReportClientName: jest.fn(),
     setReportKeterangan: jest.fn(),
-    setStartDate: jest.fn(),
-    setEndDate: jest.fn(),
     setFormDate: jest.fn(),
     setFormRoomNumber: jest.fn(),
     setFormQuantityKg: jest.fn(),
@@ -91,9 +95,13 @@ describe("useReportTransactionsActions", () => {
       },
     });
 
-    const { onSubmitAdd } = useReportTransactionsActions(params);
+    const { result } = renderHook(() => useReportTransactionsActions(params));
     const preventDefault = jest.fn();
-    await onSubmitAdd({ preventDefault } as unknown as React.FormEvent<HTMLFormElement>);
+    await act(async () => {
+      await result.current.onSubmitAdd({
+        preventDefault,
+      } as unknown as FormEvent<HTMLFormElement>);
+    });
 
     expect(preventDefault).toHaveBeenCalled();
     expect(createTransactionRequestMock).toHaveBeenCalled();
@@ -125,8 +133,10 @@ describe("useReportTransactionsActions", () => {
       },
     });
 
-    const { onSaveInlineEdit } = useReportTransactionsActions(params);
-    await onSaveInlineEdit();
+    const { result } = renderHook(() => useReportTransactionsActions(params));
+    await act(async () => {
+      await result.current.onSaveInlineEdit();
+    });
 
     expect(updateTransactionRequestMock).toHaveBeenCalled();
     expect(params.setTransactionState).toHaveBeenCalledWith(expect.any(Function));
@@ -138,8 +148,10 @@ describe("useReportTransactionsActions", () => {
     const params = baseParams();
     deleteTransactionRequestMock.mockResolvedValue({ ok: true });
 
-    const { onDeleteRow } = useReportTransactionsActions(params);
-    await onDeleteRow("t-1");
+    const { result } = renderHook(() => useReportTransactionsActions(params));
+    await act(async () => {
+      await result.current.onDeleteRow("t-1");
+    });
 
     expect(deleteTransactionRequestMock).toHaveBeenCalledWith("t-1");
     expect(params.setTransactionState).toHaveBeenCalledWith(expect.any(Function));

@@ -1,6 +1,6 @@
 export function validateLoginCredentials(username: string, password: string) {
   if (!username.trim() || !password.trim()) {
-    return "Username dan password wajib diisi.";
+    return "Data login belum lengkap atau belum valid.";
   }
   return null;
 }

@@ -13,36 +13,23 @@ import {
   getAuthMeRequest,
   postAuthLogoutRequest,
 } from "@/lib/services/auth/report-api";
-import { LaundryTransaction } from "@/types/laundry";
 
 const INACTIVITY_LOGOUT_MS = 60 * 60 * 1000;
 
 interface UseReportAuthParams {
   isInitializing: boolean;
   setIsInitializing: (value: boolean) => void;
-  setIsLoadingTransactions: (value: boolean) => void;
-  setTransactionError: (value: string) => void;
   setUsername: (value: string) => void;
-  setTransactionState: (value: LaundryTransaction[]) => void;
   setReportClientName: (value: string) => void;
   setReportKeterangan: (value: string) => void;
-  setStartDate: (value: string) => void;
-  setEndDate: (value: string) => void;
-  fetchTransactionsList: () => Promise<LaundryTransaction[] | null>;
 }
 
 export function useReportAuth({
   isInitializing,
   setIsInitializing,
-  setIsLoadingTransactions,
-  setTransactionError,
   setUsername,
-  setTransactionState,
   setReportClientName,
   setReportKeterangan,
-  setStartDate,
-  setEndDate,
-  fetchTransactionsList,
 }: UseReportAuthParams) {
   const router = useRouter();
   const inactivityTimeoutRef = useRef<number | null>(null);
@@ -65,24 +52,6 @@ export function useReportAuth({
   useEffect(() => {
     let cancelled = false;
 
-    const loadTransactionsFromBackend = async (): Promise<LaundryTransaction[] | null> => {
-      setIsLoadingTransactions(true);
-      setTransactionError("");
-      try {
-        const nextTransactions = await fetchTransactionsList();
-        if (!nextTransactions) {
-          setTransactionError("Gagal memuat transaksi dari server.");
-          return null;
-        }
-        return nextTransactions;
-      } catch {
-        setTransactionError("Gagal memuat transaksi dari server.");
-        return null;
-      } finally {
-        setIsLoadingTransactions(false);
-      }
-    };
-
     const bootstrap = async () => {
       try {
         const response = await getAuthMeRequest();
@@ -101,14 +70,9 @@ export function useReportAuth({
 
         setAuthSessionFromUsername(payload.user.username);
         const preferences = getReportPreferences();
-        const backendTransactions = await loadTransactionsFromBackend();
         setUsername(payload.user.username);
-        const nextTransactions = backendTransactions ?? [];
-        setTransactionState(nextTransactions);
         setReportClientName(preferences.clientName);
         setReportKeterangan(preferences.keterangan);
-        setStartDate(preferences.startDate ?? "");
-        setEndDate(preferences.endDate ?? "");
       } catch {
         if (!cancelled) {
           redirectToLogin();
@@ -125,16 +89,10 @@ export function useReportAuth({
       cancelled = true;
     };
   }, [
-    fetchTransactionsList,
     redirectToLogin,
-    setEndDate,
     setIsInitializing,
-    setIsLoadingTransactions,
     setReportClientName,
     setReportKeterangan,
-    setStartDate,
-    setTransactionError,
-    setTransactionState,
     setUsername,
   ]);
 

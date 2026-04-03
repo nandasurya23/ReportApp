@@ -110,7 +110,7 @@ describe("transactions API routes", () => {
 
   it("POST create returns transaction shape for valid payload", async () => {
     getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
-    prismaMock.transaction.findFirst.mockResolvedValue(null);
+    prismaMock.transaction.findMany.mockResolvedValue([]);
     prismaMock.transaction.create.mockResolvedValue({
       id: "tx-new",
       date: new Date("2026-03-02T00:00:00.000Z"),
@@ -179,6 +179,7 @@ describe("transactions API routes", () => {
         pricePerKg: 5000,
       })
       .mockResolvedValueOnce(null);
+    prismaMock.transaction.findMany.mockResolvedValueOnce([]);
     prismaMock.transaction.update.mockResolvedValue({
       id: "tx-1",
       date: new Date("2026-03-01T00:00:00.000Z"),
@@ -240,8 +241,8 @@ describe("transactions API routes", () => {
     prismaMock.transaction.count.mockRejectedValue(new Error("db down"));
     const request = new Request("http://localhost/api/transactions") as never;
     const response = await getTransactions(request);
-    const body = (await response.json()) as { error?: string };
+    const body = (await response.json()) as { code?: string; message?: string };
     expect(response.status).toBe(500);
-    expect(body.error).toBe("Internal server error.");
+    expect(body.code).toBe("INTERNAL_SERVER_ERROR");
   });
 });

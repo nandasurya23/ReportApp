@@ -3,15 +3,15 @@
 import { RefObject } from "react";
 
 import { formatIDR } from "@/lib/utils/currency";
-import { formatISODateToLongID } from "@/lib/utils/date";
+import { formatDateWITA, formatISODateToLongID } from "@/lib/utils/date";
 import { getDailyTotal } from "@/lib/utils/laundry";
 import { LaundryTransaction } from "@/types/laundry";
 
 interface ReportPdfPreviewProps {
   pdfExportRef: RefObject<HTMLDivElement | null>;
   finalReportTitle: string;
-  startDate: string;
-  endDate: string;
+  selectedMonthLabel: string;
+  isMonthLoading: boolean;
   sortedTransactions: LaundryTransaction[];
   noteCountByDate: Map<string, number>;
   dailySubtotalByDate: Map<string, number>;
@@ -21,8 +21,8 @@ interface ReportPdfPreviewProps {
 export function ReportPdfPreview({
   pdfExportRef,
   finalReportTitle,
-  startDate,
-  endDate,
+  selectedMonthLabel,
+  isMonthLoading,
   sortedTransactions,
   noteCountByDate,
   dailySubtotalByDate,
@@ -51,103 +51,160 @@ export function ReportPdfPreview({
       >
         <h2 style={{ margin: 0, fontSize: "19px", fontWeight: 700 }}>{finalReportTitle}</h2>
         <p style={{ margin: "7px 0 0", fontSize: "12px", color: "#475569" }}>
-          Periode: {startDate || "-"} s/d {endDate || "-"}
+          Bulan aktif: {selectedMonthLabel}
         </p>
       </div>
 
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          tableLayout: "fixed",
-          fontSize: "12px",
-          color: "#0f172a",
-        }}
-      >
-        <thead>
-          <tr style={{ background: "#e2e8f0" }}>
-            {[
-              "Nomer",
-              "Tanggal tahun bulan",
-              "Jumlah Nota",
-              "No Kamar",
-              "Satuan",
-              "Harga",
-              "Harga Total Harian",
-              "Total Keseluruhan",
-              "Keterangan",
-            ].map((head) => (
-              <th
-                key={head}
-                style={{
-                  border: "1px solid #cbd5e1",
-                  padding: "8px 7px",
-                  textAlign: "center",
-                  fontWeight: 600,
-                }}
-              >
-                {head}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sortedTransactions.map((transaction, index) => {
-            const isFirstDateRow =
-              index === 0 || sortedTransactions[index - 1].date !== transaction.date;
-            return (
-              <tr key={transaction.id}>
-                <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}>
-                  {index + 1}
-                </td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}>
-                  {isFirstDateRow ? formatISODateToLongID(transaction.date) : ""}
-                </td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}>
-                  {noteCountByDate.get(transaction.id) ?? 0}
-                </td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}>
-                  {transaction.roomNumber}
-                </td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}>
-                  {transaction.quantityKg}
-                </td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}>
-                  {formatIDR(transaction.pricePerKg)}
-                </td>
-                <td
-                  style={{
-                    border: "1px solid #cbd5e1",
-                    padding: "7px 7px",
-                    textAlign: "right",
-                    fontWeight: 600,
-                  }}
-                >
-                  {formatIDR(getDailyTotal(transaction))}
-                </td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}>
-                  {isFirstDateRow ? formatIDR(dailySubtotalByDate.get(transaction.date) ?? 0) : ""}
-                </td>
-                <td style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}>
-                  {isFirstDateRow ? transaction.clientName : ""}
-                </td>
+      {isMonthLoading ? (
+        <div
+          style={{
+            border: "1px dashed #cbd5e1",
+            borderRadius: "10px",
+            padding: "18px",
+            fontSize: "12px",
+            color: "#475569",
+          }}
+        >
+          Memuat bulan aktif...
+        </div>
+      ) : (
+        <>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              tableLayout: "fixed",
+              fontSize: "12px",
+              color: "#0f172a",
+            }}
+          >
+            <thead>
+              <tr style={{ background: "#e2e8f0" }}>
+                {[
+                  "Nomer",
+                  "Tanggal tahun bulan",
+                  "Jumlah Nota",
+                  "No Kamar",
+                  "Satuan",
+                  "Harga",
+                  "Harga Total Harian",
+                  "Total Keseluruhan",
+                  "Keterangan",
+                ].map((head) => (
+                  <th
+                    key={head}
+                    style={{
+                      border: "1px solid #cbd5e1",
+                      padding: "8px 7px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {head}
+                  </th>
+                ))}
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div
-        style={{
-          marginTop: "10px",
-          border: "1px solid #cbd5e1",
-          background: "#e2e8f0",
-          padding: "8px 10px",
-          textAlign: "right",
-        }}
-      >
-        <p style={{ margin: 0, fontSize: "11px", fontWeight: 600 }}>Total Bulanan</p>
-        <p style={{ margin: "2px 0 0", fontSize: "14px", fontWeight: 700 }}>{formatIDR(monthlyTotal)}</p>
-      </div>
+            </thead>
+            <tbody>
+              {sortedTransactions.map((transaction, index) => {
+                const isFirstDateRow =
+                  index === 0 || sortedTransactions[index - 1].date !== transaction.date;
+                return (
+                  <tr key={transaction.id}>
+                    <td
+                      style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}
+                    >
+                      {index + 1}
+                    </td>
+                    <td
+                      style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}
+                    >
+                      {isFirstDateRow ? formatISODateToLongID(transaction.date) : ""}
+                    </td>
+                    <td
+                      style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}
+                    >
+                      {noteCountByDate.get(transaction.id) ?? 0}
+                    </td>
+                    <td
+                      style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}
+                    >
+                      {transaction.roomNumber}
+                    </td>
+                    <td
+                      style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}
+                    >
+                      {transaction.quantityKg}
+                    </td>
+                    <td
+                      style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}
+                    >
+                      {formatIDR(transaction.pricePerKg)}
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #cbd5e1",
+                        padding: "7px 7px",
+                        textAlign: "right",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {formatIDR(getDailyTotal(transaction))}
+                    </td>
+                    <td
+                      style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}
+                    >
+                      {isFirstDateRow ? formatIDR(dailySubtotalByDate.get(transaction.date) ?? 0) : ""}
+                    </td>
+                    <td
+                      style={{ border: "1px solid #cbd5e1", padding: "7px 7px", textAlign: "center" }}
+                    >
+                      {isFirstDateRow ? transaction.clientName : ""}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div
+            style={{
+              marginTop: "10px",
+              border: "1px solid #cbd5e1",
+              background: "#e2e8f0",
+              padding: "8px 10px",
+              textAlign: "right",
+            }}
+          >
+            <p style={{ margin: 0, fontSize: "11px", fontWeight: 600 }}>Total Bulanan</p>
+            <p style={{ margin: "2px 0 0", fontSize: "14px", fontWeight: 700 }}>
+              {formatIDR(monthlyTotal)}
+            </p>
+          </div>
+
+          <div
+            style={{
+              marginTop: "24px",
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <div
+              style={{
+                width: "260px",
+                textAlign: "end",
+                color: "#0f172a",
+                pageBreakInside: "avoid",
+                breakInside: "avoid",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: "12px" }}>Denpasar, {formatDateWITA()}</p>
+              <div style={{ height: "64px" }} />
+              <p style={{ margin: 0, fontSize: "13px", fontWeight: 600 }}>Eka</p>
+            </div>
+          </div>
+
+        </>
+      )}
     </div>
   );
 }

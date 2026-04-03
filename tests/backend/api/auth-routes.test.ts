@@ -35,6 +35,9 @@ jest.mock("@/lib/server/auth", () => ({
   createSessionToken: () => createSessionTokenMock(),
   SESSION_MAX_AGE_SECONDS: 60,
   verifyPassword: (...args: unknown[]) => verifyPasswordMock(...args),
+  getAuthThrottleDayKey: () => "2026-03-15",
+  isLoginAttemptLimiterUnavailable: (error: unknown) =>
+    Boolean(error && typeof error === "object" && (error as { code?: string }).code === "P2021"),
   clearAuthCookie: (response: Response) => clearAuthCookieMock(response),
   unauthorizedResponse: () => unauthorizedResponseMock(),
 }));
@@ -98,10 +101,12 @@ describe("auth API routes", () => {
       body: "{bad json",
     });
     const response = await loginPost(request);
-    const body = (await response.json()) as { error?: string };
+    const body = (await response.json()) as { code?: string; message?: string; error?: string };
 
     expect(response.status).toBe(400);
-    expect(body.error).toBe("Invalid request body.");
+    expect(body.code).toBe("VALIDATION_ERROR");
+    expect(body.message).toBe("Data login belum lengkap atau belum valid.");
+    expect(body.error).toBe("Data login belum lengkap atau belum valid.");
   });
 
   it("me returns unauthorized when no token cookie exists", async () => {
