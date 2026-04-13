@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 
+import { useDebounce } from "@/hooks/use-debounce";
+
 import { ReportPdfPreview } from "@/components/report/report-pdf-preview";
 import { ReportStats } from "@/components/report/report-stats";
 import { ReportTableSection } from "@/components/report/report-table-section";
@@ -57,6 +59,7 @@ export default function ReportPage() {
   const [reportClientName, setReportClientName] = useState("");
   const [reportKeterangan, setReportKeterangan] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 250);
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
   const [formRoomNumber, setFormRoomNumber] = useState("");
   const [formQuantityKg, setFormQuantityKg] = useState("1");
@@ -193,7 +196,7 @@ export default function ReportPage() {
     printKeterangan,
   } = useReportDerived({
     transactions: monthTransactions ?? [],
-    searchQuery,
+    searchQuery: debouncedSearchQuery,
     visibleLimit,
     reportClientName,
     selectedMonth,

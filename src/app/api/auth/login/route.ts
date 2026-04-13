@@ -11,10 +11,10 @@ import {
   SESSION_MAX_AGE_SECONDS,
   verifyPassword,
 } from "@/lib/server/auth";
+import { MAX_FAILED_LOGIN_ATTEMPTS_PER_DAY } from "@/lib/constants/limits";
 import { prisma } from "@/lib/server/prisma";
 
 export const runtime = "nodejs";
-const MAX_FAILED_LOGIN_ATTEMPTS_PER_DAY = 5;
 
 function getLoginAttemptDelegate() {
   const client = prisma as unknown as {
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     });
 
     const username = body.username?.trim();
-    const password = body.password;
+    const password = body.password?.trim();
 
     if (!username || !password) {
       console.log("[auth/login] step=invalid-input");

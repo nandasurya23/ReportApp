@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { MAX_PRICE_PER_KG } from "@/lib/constants/limits";
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/session";
 import {
@@ -158,7 +159,7 @@ export async function PATCH(
 
     if (Object.prototype.hasOwnProperty.call(body, "pricePerKg")) {
       const pricePerKg = Number(body.pricePerKg);
-      if (!Number.isFinite(pricePerKg) || pricePerKg < 0) {
+      if (!Number.isFinite(pricePerKg) || pricePerKg < 0 || pricePerKg > MAX_PRICE_PER_KG) {
         fieldErrors.pricePerKg = "Harga per kg harus 0 atau lebih.";
       } else {
         data.pricePerKg = Math.round(pricePerKg);

@@ -34,11 +34,8 @@ export function verifyPassword(password: string, storedHash: string): boolean {
     return compareSync(password, normalized);
   }
 
-  // Compatibility path for existing local/dev seeded users.
-  if (normalized === password) {
-    return true;
-  }
-
+  // Legacy migration path: SHA-256 hashed passwords (no plain-text accepted).
+  // On successful login the caller re-hashes to bcrypt via needsPasswordRehash().
   const digest = hashPasswordLegacySha256(password);
   const a = Buffer.from(digest);
   const b = Buffer.from(normalized);

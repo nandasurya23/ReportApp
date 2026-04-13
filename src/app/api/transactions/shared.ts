@@ -1,3 +1,5 @@
+import { MAX_QUANTITY_KG, MIN_TRANSACTION_YEAR } from "@/lib/constants/limits";
+
 export const MAX_ROOM_NUMBER_LENGTH = 64;
 export const MAX_CLIENT_NAME_LENGTH = 160;
 
@@ -38,6 +40,12 @@ export function parseDate(value: string): Date | null {
   ) {
     return null;
   }
+
+  const maxYear = new Date().getUTCFullYear() + 1;
+  if (year < MIN_TRANSACTION_YEAR || year > maxYear) {
+    return null;
+  }
+
   return date;
 }
 
@@ -80,7 +88,7 @@ export function getBusinessDateKey(date: Date): string {
 }
 
 export function isValidOneDecimalQuantity(value: number): boolean {
-  if (!Number.isFinite(value) || value <= 0) {
+  if (!Number.isFinite(value) || value <= 0 || value > MAX_QUANTITY_KG) {
     return false;
   }
   const scaled = Math.round(value * 10);

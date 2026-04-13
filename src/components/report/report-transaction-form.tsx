@@ -84,7 +84,7 @@ export function ReportTransactionForm({
 
           <div className="space-y-2">
             <label htmlFor="qty" className="field-label">
-              Satuan
+              Berat (kg)
             </label>
             <input
               id="qty"
@@ -112,7 +112,9 @@ export function ReportTransactionForm({
           <label htmlFor="client-name" className="field-label">
             Nama Client
           </label>
-          <p className="-mt-1 text-xs text-[#6d5d50]">Diisi sekali untuk laporan bulan aktif.</p>
+          <p className="mt-0.5 rounded-md bg-[#f8f1e8] px-2 py-1 text-xs font-medium text-[#5b4f44]">
+            Diisi sekali untuk laporan bulan aktif.
+          </p>
           <input
             id="client-name"
             type="text"
@@ -127,7 +129,9 @@ export function ReportTransactionForm({
           <label htmlFor="keterangan" className="field-label">
             Keterangan
           </label>
-          <p className="-mt-1 text-xs text-[#6d5d50]">Diisi sekali untuk catatan laporan bulan aktif.</p>
+          <p className="mt-0.5 rounded-md bg-[#f8f1e8] px-2 py-1 text-xs font-medium text-[#5b4f44]">
+            Diisi sekali untuk catatan laporan bulan aktif.
+          </p>
           <input
             id="keterangan"
             type="text"
