@@ -100,7 +100,11 @@ export function LoginFormCard({
           Remember Me
         </label>
 
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {error && (
+          <p className="rounded-lg border border-rose-200 bg-[#fff5f2] px-3 py-2 text-sm text-rose-700">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"

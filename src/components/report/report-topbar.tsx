@@ -31,16 +31,19 @@ export function ReportTopbar({
             Kelola transaksi, filter bulan, dan export laporan dari satu tempat yang tenang dan rapi.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-          <span className="rounded-full border border-[#e7ddd1] bg-[#f8f1e8] px-2.5 py-1 font-medium text-[#5b4f44]">
-            Bulan aktif: {selectedMonthLabel}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e7ddd1] bg-[#f8f1e8] px-3 py-1.5 text-xs font-semibold text-[#5b4f44]">
+            <span className="text-[#8a7764]">Bulan</span>
+            {selectedMonthLabel}
           </span>
-          <span className="rounded-full border border-[#e7ddd1] bg-[#fbf8f4] px-2.5 py-1 font-medium text-[#5b4f44]">
-            User: {username}
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e7ddd1] bg-[#fbf8f4] px-3 py-1.5 text-xs font-semibold text-[#5b4f44]">
+            <span className="text-[#8a7764]">User</span>
+            {username}
           </span>
           {reportClientName.trim() && (
-            <span className="rounded-full border border-[#e7ddd1] bg-[#f8f1e8] px-2.5 py-1 font-medium text-[#5b4f44]">
-              Client: {reportClientName.trim()}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e7ddd1] bg-[#f8f1e8] px-3 py-1.5 text-xs font-semibold text-[#5b4f44]">
+              <span className="text-[#8a7764]">Client</span>
+              {reportClientName.trim()}
             </span>
           )}
         </div>

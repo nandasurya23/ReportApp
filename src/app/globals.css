@@ -128,8 +128,10 @@ body {
 
 .btn:disabled {
   cursor: not-allowed;
+  opacity: 0.45;
   transform: none;
   box-shadow: 0 1px 2px rgba(47, 42, 37, 0.04);
+  filter: grayscale(0.15);
 }
 
 button,

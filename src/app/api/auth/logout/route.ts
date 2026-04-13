@@ -14,7 +14,8 @@ export async function POST(request: NextRequest) {
     }
 
     return clearAuthCookie(NextResponse.json({ success: true }, { status: 200 }));
-  } catch {
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+  } catch (error) {
+    console.error("[auth/logout] POST failed", error);
+    return NextResponse.json({ error: "Internal server error.", message: "Internal server error.", code: "INTERNAL_SERVER_ERROR" }, { status: 500 });
   }
 }

@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
       },
       { status: 200 },
     );
-  } catch {
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+  } catch (error) {
+    console.error("[auth/me] GET failed", error);
+    return NextResponse.json({ error: "Internal server error.", message: "Internal server error.", code: "INTERNAL_SERVER_ERROR" }, { status: 500 });
   }
 }

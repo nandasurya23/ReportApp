@@ -144,10 +144,10 @@ function ReportTableSectionComponent({
           <div className="relative max-h-[66vh] overflow-auto overscroll-contain">
             {isMonthLoading && !isMonthReady ? (
               <div className="space-y-2 p-3">
-                <div className="h-10 animate-pulse rounded-md bg-[#eadfce]/80" />
-                <div className="h-10 animate-pulse rounded-md bg-[#f4ece2]" />
-                <div className="h-10 animate-pulse rounded-md bg-[#f4ece2]" />
-                <div className="h-10 animate-pulse rounded-md bg-[#f4ece2]" />
+                <div className="h-10 animate-pulse rounded-md bg-[#d8ccbc]/70" />
+                <div className="h-10 animate-pulse rounded-md bg-[#e7ddd1]/60" />
+                <div className="h-10 animate-pulse rounded-md bg-[#e7ddd1]/60" />
+                <div className="h-10 animate-pulse rounded-md bg-[#e7ddd1]/60" />
               </div>
             ) : transactionError && visibleTransactions.length === 0 ? (
               <div className="bg-[#fbf8f4] p-4 sm:p-6">
@@ -163,7 +163,7 @@ function ReportTableSectionComponent({
                 <EmptyState selectedMonthLabel={selectedMonthLabel} />
               </div>
             ) : (
-              <div className="[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:shadow-[inset_0_-1px_0_0_rgba(148,163,184,0.25)]">
+              <div className="overflow-x-auto [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:shadow-[inset_0_-1px_0_0_rgba(148,163,184,0.25)]">
                 <TransactionsTable
                   filteredTransactions={visibleTransactions}
                   dailySubtotalByDate={visibleDailySubtotalByDate}

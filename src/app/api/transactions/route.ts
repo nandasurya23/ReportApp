@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/session";
+import { MAX_MONTH_ROWS, MAX_PRICE_PER_KG } from "@/lib/constants/limits";
 import {
   compactText,
   getBusinessDateKey,
@@ -77,20 +78,12 @@ export async function GET(request: NextRequest) {
       : { userId: auth.userId };
 
     const shouldReturnFullMonth = Boolean(monthBounds && scope === "month");
+    const orderBy = [{ date: "desc" as const }, { createdAt: "desc" as const }];
     const [total, transactions] = await Promise.all([
-      prisma.transaction.count({
-        where,
-      }),
-      prisma.transaction.findMany({
-        where,
-        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-        ...(shouldReturnFullMonth
-          ? {}
-          : {
-              skip,
-              take: limit,
-            }),
-      }),
+      prisma.transaction.count({ where }),
+      shouldReturnFullMonth
+        ? prisma.transaction.findMany({ where, orderBy, take: MAX_MONTH_ROWS })
+        : prisma.transaction.findMany({ where, orderBy, skip, take: limit }),
     ]);
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -162,7 +155,7 @@ export async function POST(request: NextRequest) {
     if (!isValidOneDecimalQuantity(quantityKg)) {
       fieldErrors.quantityKg = "Jumlah kg harus lebih dari 0 dan maksimal 1 angka desimal.";
     }
-    if (!Number.isFinite(pricePerKg) || pricePerKg < 0) {
+    if (!Number.isFinite(pricePerKg) || pricePerKg < 0 || pricePerKg > MAX_PRICE_PER_KG) {
       fieldErrors.pricePerKg = "Harga per kg harus 0 atau lebih.";
     }
 
