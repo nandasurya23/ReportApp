@@ -1,6 +1,7 @@
 import {
   createTransactionRequest,
   deleteTransactionRequest,
+  deleteTransactionsByMonthRequest,
   getTransactionsPayload,
   getTransactionsRequest,
   readApiError,
@@ -70,6 +71,12 @@ describe("report-api service", () => {
 
     await resetTransactionsRequest();
     expect(fetchMock).toHaveBeenCalledWith("/api/transactions", {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    await deleteTransactionsByMonthRequest("2026-03");
+    expect(fetchMock).toHaveBeenCalledWith("/api/transactions?month=2026-03", {
       method: "DELETE",
       credentials: "include",
     });

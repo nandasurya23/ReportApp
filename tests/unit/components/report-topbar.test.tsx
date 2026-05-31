@@ -14,9 +14,9 @@ describe("ReportTopbar", () => {
         onLogout={jest.fn()}
       />,
     );
-    expect(screen.getByText("User: pelunk")).toBeInTheDocument();
-    expect(screen.getByText("Client: Client A")).toBeInTheDocument();
-    expect(screen.getByText(/Bulan aktif: Maret 2026/i)).toBeInTheDocument();
+    expect(screen.getByText("pelunk")).toBeInTheDocument();
+    expect(screen.getByText("Client A")).toBeInTheDocument();
+    expect(screen.getByText(/Maret 2026/)).toBeInTheDocument();
   });
 
   it("hides client badge when client name is empty", () => {
@@ -28,8 +28,8 @@ describe("ReportTopbar", () => {
         onLogout={jest.fn()}
       />,
     );
-    expect(screen.getByText("User: pelunk")).toBeInTheDocument();
-    expect(screen.queryByText(/Client:/)).not.toBeInTheDocument();
+    expect(screen.getByText("pelunk")).toBeInTheDocument();
+    expect(screen.queryByText("Client A")).not.toBeInTheDocument();
   });
 
   it("calls logout handler when button is clicked", () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { ListOrdered, ReceiptText, Users } from "lucide-react";
 
 import { IconChip } from "@/components/report/icon-chip";
@@ -15,7 +16,7 @@ interface ReportStatsProps {
   monthErrorMessage: string;
 }
 
-export function ReportStats({
+function ReportStatsComponent({
   monthlyTotal,
   activeTransactionCount,
   activeClientCount,
@@ -105,3 +106,5 @@ export function ReportStats({
     </section>
   );
 }
+
+export const ReportStats = memo(ReportStatsComponent);

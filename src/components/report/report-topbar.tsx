@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { LogOut } from "lucide-react";
 
 import { IconChip } from "@/components/report/icon-chip";
@@ -11,7 +12,7 @@ interface ReportTopbarProps {
   onLogout: () => void | Promise<void>;
 }
 
-export function ReportTopbar({
+function ReportTopbarComponent({
   username,
   reportClientName,
   selectedMonthLabel,
@@ -61,3 +62,5 @@ export function ReportTopbar({
     </header>
   );
 }
+
+export const ReportTopbar = memo(ReportTopbarComponent);

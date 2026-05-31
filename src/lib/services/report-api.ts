@@ -99,6 +99,19 @@ export async function resetTransactionsRequest() {
   });
 }
 
+export async function deleteTransactionsByMonthRequest(month: string) {
+  const query = new URLSearchParams();
+  if (month) {
+    query.set("month", month);
+  }
+  const queryString = query.toString();
+  const url = queryString ? `/api/transactions?${queryString}` : "/api/transactions";
+  return fetch(url, {
+    method: "DELETE",
+    credentials: "include",
+  });
+}
+
 export async function readApiError(response: Response) {
   return safeJson(response, {} as TransactionApiError);
 }

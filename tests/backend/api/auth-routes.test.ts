@@ -5,7 +5,7 @@ const prismaMock = {
   session: {
     create: jest.fn(),
     deleteMany: jest.fn(),
-    findFirst: jest.fn(),
+    findUnique: jest.fn(),
   },
   loginAttempt: {
     findUnique: jest.fn(),
@@ -51,7 +51,7 @@ describe("auth API routes", () => {
     prismaMock.user.findUnique.mockReset();
     prismaMock.session.create.mockReset();
     prismaMock.session.deleteMany.mockReset();
-    prismaMock.session.findFirst.mockReset();
+    prismaMock.session.findUnique.mockReset();
     prismaMock.loginAttempt.findUnique.mockReset();
     prismaMock.loginAttempt.upsert.mockReset();
     prismaMock.loginAttempt.deleteMany.mockReset();
@@ -123,11 +123,12 @@ describe("auth API routes", () => {
   });
 
   it("me returns user shape when session is valid", async () => {
-    prismaMock.session.findFirst.mockResolvedValue({
+    prismaMock.session.findUnique.mockResolvedValue({
+      expiresAt: new Date("2099-03-15T01:00:00.000Z"),
       user: {
         id: "user-1",
         username: "pelunk",
-        createdAt: new Date("2026-03-15T00:00:00.000Z"),
+        createdAt: new Date("2099-03-15T00:00:00.000Z"),
       },
     });
     const request = {
@@ -142,7 +143,7 @@ describe("auth API routes", () => {
     expect(body.user).toEqual({
       id: "user-1",
       username: "pelunk",
-      createdAt: "2026-03-15T00:00:00.000Z",
+      createdAt: "2099-03-15T00:00:00.000Z",
     });
   });
 

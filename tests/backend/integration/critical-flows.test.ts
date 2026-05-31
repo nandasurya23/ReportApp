@@ -4,7 +4,7 @@ const prismaMock = {
   },
   session: {
     create: jest.fn(),
-    findFirst: jest.fn(),
+    findUnique: jest.fn(),
     deleteMany: jest.fn(),
   },
   transaction: {
@@ -63,7 +63,7 @@ describe("backend integration critical flows", () => {
   beforeEach(() => {
     prismaMock.user.findUnique.mockReset();
     prismaMock.session.create.mockReset();
-    prismaMock.session.findFirst.mockReset();
+    prismaMock.session.findUnique.mockReset();
     prismaMock.session.deleteMany.mockReset();
     prismaMock.transaction.findFirst.mockReset();
     prismaMock.transaction.findMany.mockReset();
@@ -105,11 +105,12 @@ describe("backend integration critical flows", () => {
     );
     expect(loginResponse.status).toBe(200);
 
-    prismaMock.session.findFirst.mockResolvedValue({
+    prismaMock.session.findUnique.mockResolvedValue({
+      expiresAt: new Date("2099-03-15T01:00:00.000Z"),
       user: {
         id: "user-1",
         username: "pelunk",
-        createdAt: new Date("2026-03-15T00:00:00.000Z"),
+        createdAt: new Date("2099-03-15T00:00:00.000Z"),
       },
     });
     const meResponse = await meGet({

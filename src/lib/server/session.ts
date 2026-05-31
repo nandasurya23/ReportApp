@@ -3,6 +3,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME, clearAuthCookie, unauthorizedResponse } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/prisma";
 
+const SESSION_CLEANUP_INTERVAL_MS = 30 * 60 * 1000;
+
+let lastSessionCleanupAt = 0;
+
+function scheduleExpiredSessionCleanup(now: number) {
+  if (now - lastSessionCleanupAt < SESSION_CLEANUP_INTERVAL_MS) {
+    return;
+  }
+
+  lastSessionCleanupAt = now;
+  void prisma.session.deleteMany({
+    where: {
+      expiresAt: {
+        lt: new Date(now - SESSION_CLEANUP_INTERVAL_MS),
+      },
+    },
+  }).catch(() => {
+    // Best-effort cleanup only.
+  });
+}
+
 export async function getSessionUser(request: NextRequest): Promise<{
   userId: string;
   username: string;
@@ -12,19 +33,6 @@ export async function getSessionUser(request: NextRequest): Promise<{
   username?: undefined;
   unauthorizedResponse: NextResponse;
 }> {
-  try {
-    const retentionCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    await prisma.session.deleteMany({
-      where: {
-        expiresAt: {
-          lt: retentionCutoff,
-        },
-      },
-    });
-  } catch {
-    // Best-effort cleanup only.
-  }
-
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (!token) {
     return {
@@ -32,14 +40,15 @@ export async function getSessionUser(request: NextRequest): Promise<{
     };
   }
 
-  const session = await prisma.session.findFirst({
+  const now = Date.now();
+  scheduleExpiredSessionCleanup(now);
+
+  const session = await prisma.session.findUnique({
     where: {
       token,
-      expiresAt: {
-        gt: new Date(),
-      },
     },
-    include: {
+    select: {
+      expiresAt: true,
       user: {
         select: {
           id: true,
@@ -49,7 +58,7 @@ export async function getSessionUser(request: NextRequest): Promise<{
     },
   });
 
-  if (!session) {
+  if (!session || session.expiresAt <= new Date(now)) {
     return { unauthorizedResponse: clearAuthCookie(unauthorizedResponse()) };
   }
 

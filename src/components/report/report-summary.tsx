@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 
 import { formatIDR } from "@/lib/utils/currency";
@@ -16,7 +17,7 @@ interface ReportSummaryProps {
   monthErrorMessage: string;
 }
 
-export function ReportSummary({
+function ReportSummaryComponent({
   monthlyTotal,
   reportClientName,
   printKeterangan,
@@ -87,3 +88,5 @@ export function ReportSummary({
     </motion.section>
   );
 }
+
+export const ReportSummary = memo(ReportSummaryComponent);

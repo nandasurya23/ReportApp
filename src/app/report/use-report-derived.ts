@@ -43,8 +43,14 @@ export function useReportDerived({
       }),
     [transactions, searchQuery, visibleLimit, selectedMonth],
   );
-  const finalReportTitle = getFinalReportTitle(reportClientName, selectedMonth);
-  const printKeterangan = getPrintKeterangan(reportKeterangan);
+  const finalReportTitle = useMemo(
+    () => getFinalReportTitle(reportClientName, selectedMonth),
+    [reportClientName, selectedMonth],
+  );
+  const printKeterangan = useMemo(
+    () => getPrintKeterangan(reportKeterangan),
+    [reportKeterangan],
+  );
 
   return {
     sortedTransactions,

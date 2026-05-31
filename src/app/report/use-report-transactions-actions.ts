@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useRef } from "react";
+import { FormEvent, useCallback, useRef } from "react";
 import { toast } from "sonner";
 
 import { setReportPreferences } from "@/lib/storage/local-storage";
 import {
   createTransactionRequest,
+  deleteTransactionsByMonthRequest,
   deleteTransactionRequest,
   readApiError,
   resetTransactionsRequest,
@@ -63,6 +64,7 @@ interface UseReportTransactionsActionsParams {
   setFormPriceInput: (value: string) => void;
   editDraft: EditDraft | null;
   setEditDraft: React.Dispatch<React.SetStateAction<EditDraft | null>>;
+  selectedMonth: string;
 }
 
 export function useReportTransactionsActions({
@@ -91,19 +93,20 @@ export function useReportTransactionsActions({
   setFormPriceInput,
   editDraft,
   setEditDraft,
+  selectedMonth,
 }: UseReportTransactionsActionsParams) {
   const createInFlightRef = useRef(false);
 
-  const mapTransactionFromPayload = (payload: unknown) => {
+  const mapTransactionFromPayload = useCallback((payload: unknown) => {
     const raw = (payload as { transaction?: unknown })?.transaction;
     if (!raw || typeof raw !== "object") {
       return null;
     }
     const mapped = mapTransactionRows([raw as never]);
     return mapped[0] ?? null;
-  };
+  }, []);
 
-  const onSubmitAdd = async (event: FormEvent<HTMLFormElement>) => {
+  const onSubmitAdd = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isCreatingTransaction || createInFlightRef.current) {
       return;
@@ -178,9 +181,30 @@ export function useReportTransactionsActions({
       createInFlightRef.current = false;
       setIsCreatingTransaction(false);
     }
-  };
+  }, [
+    formDate,
+    formPriceInput,
+    formQuantityKg,
+    formRoomNumber,
+    isCreatingTransaction,
+    mapTransactionFromPayload,
+    reportClientName,
+    reportKeterangan,
+    setError,
+    setFormDate,
+    setFormPriceInput,
+    setFormQuantityKg,
+    setFormRoomNumber,
+    setIsCreatingTransaction,
+    setReportClientName,
+    setReportKeterangan,
+    setTransactionError,
+    setTransactionState,
+    setVisibleLimit,
+    reloadActiveMonthData,
+  ]);
 
-  const onSaveInlineEdit = async () => {
+  const onSaveInlineEdit = useCallback(async () => {
     if (!editDraft) {
       return;
     }
@@ -251,9 +275,21 @@ export function useReportTransactionsActions({
     } finally {
       setIsUpdatingTransaction(false);
     }
-  };
+  }, [
+    editDraft,
+    isUpdatingTransaction,
+    mapTransactionFromPayload,
+    reloadActiveMonthData,
+    reportClientName,
+    setEditDraft,
+    setError,
+    setIsUpdatingTransaction,
+    setTransactionError,
+    setTransactionState,
+    setVisibleLimit,
+  ]);
 
-  const onDeleteRow = async (id: string) => {
+  const onDeleteRow = useCallback(async (id: string) => {
     if (isDeletingTransaction) {
       return;
     }
@@ -282,9 +318,9 @@ export function useReportTransactionsActions({
     } finally {
       setIsDeletingTransaction(false);
     }
-  };
+  }, [editDraft?.id, isDeletingTransaction, setEditDraft, setIsDeletingTransaction, setTransactionError, setTransactionState]);
 
-  const performResetAll = async () => {
+  const performResetAll = useCallback(async () => {
     if (isDeletingTransaction) {
       return;
     }
@@ -327,12 +363,64 @@ export function useReportTransactionsActions({
     } finally {
       setIsDeletingTransaction(false);
     }
-  };
+  }, [
+    isDeletingTransaction,
+    reloadActiveMonthData,
+    setEditDraft,
+    setError,
+    setFormDate,
+    setFormPriceInput,
+    setFormQuantityKg,
+    setFormRoomNumber,
+    setIsDeletingTransaction,
+    setReportClientName,
+    setReportKeterangan,
+    setTransactionError,
+  ]);
+
+  const performResetCurrentMonth = useCallback(async () => {
+    if (isDeletingTransaction) {
+      return;
+    }
+
+    try {
+      setIsDeletingTransaction(true);
+      setTransactionError("");
+      const resetResponse = await deleteTransactionsByMonthRequest(selectedMonth);
+
+      if (!resetResponse.ok) {
+        const payload = await readApiError(resetResponse);
+        const failedMessage = payload.error || "Gagal menghapus data bulan ini.";
+        setTransactionError(failedMessage);
+        toast.error(failedMessage);
+        return;
+      }
+
+      await reloadActiveMonthData();
+      setEditDraft(null);
+      setError("");
+      toast.success("Data bulan aktif berhasil dihapus.");
+    } catch {
+      setTransactionError("Gagal menghapus data bulan ini.");
+      toast.error("Gagal menghapus data bulan ini.");
+    } finally {
+      setIsDeletingTransaction(false);
+    }
+  }, [
+    isDeletingTransaction,
+    reloadActiveMonthData,
+    selectedMonth,
+    setEditDraft,
+    setError,
+    setIsDeletingTransaction,
+    setTransactionError,
+  ]);
 
   return {
     onSubmitAdd,
     onSaveInlineEdit,
     onDeleteRow,
     performResetAll,
+    performResetCurrentMonth,
   };
 }

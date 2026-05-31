@@ -9,6 +9,7 @@ const toastSuccessMock = jest.fn();
 const createTransactionRequestMock = jest.fn();
 const updateTransactionRequestMock = jest.fn();
 const deleteTransactionRequestMock = jest.fn();
+const deleteTransactionsByMonthRequestMock = jest.fn();
 const resetTransactionsRequestMock = jest.fn();
 const readApiErrorMock = jest.fn();
 const safeJsonMock = jest.fn();
@@ -24,6 +25,8 @@ jest.mock("@/lib/services/report-api", () => ({
   createTransactionRequest: (...args: unknown[]) => createTransactionRequestMock(...args),
   updateTransactionRequest: (...args: unknown[]) => updateTransactionRequestMock(...args),
   deleteTransactionRequest: (...args: unknown[]) => deleteTransactionRequestMock(...args),
+  deleteTransactionsByMonthRequest: (...args: unknown[]) =>
+    deleteTransactionsByMonthRequestMock(...args),
   resetTransactionsRequest: (...args: unknown[]) => resetTransactionsRequestMock(...args),
   readApiError: (...args: unknown[]) => readApiErrorMock(...args),
 }));
@@ -68,6 +71,7 @@ describe("useReportTransactionsActions", () => {
       priceInput: string;
     } | null,
     setEditDraft: jest.fn(),
+    selectedMonth: "2026-03",
   });
 
   beforeEach(() => {
@@ -76,6 +80,7 @@ describe("useReportTransactionsActions", () => {
     createTransactionRequestMock.mockReset();
     updateTransactionRequestMock.mockReset();
     deleteTransactionRequestMock.mockReset();
+    deleteTransactionsByMonthRequestMock.mockReset();
     resetTransactionsRequestMock.mockReset();
     readApiErrorMock.mockReset();
     safeJsonMock.mockReset();
@@ -156,5 +161,19 @@ describe("useReportTransactionsActions", () => {
     expect(deleteTransactionRequestMock).toHaveBeenCalledWith("t-1");
     expect(params.setTransactionState).toHaveBeenCalledWith(expect.any(Function));
     expect(toastSuccessMock).toHaveBeenCalledWith("Transaksi berhasil dihapus.");
+  });
+
+  it("deletes the selected month dataset", async () => {
+    const params = baseParams();
+    deleteTransactionsByMonthRequestMock.mockResolvedValue({ ok: true });
+
+    const { result } = renderHook(() => useReportTransactionsActions(params));
+    await act(async () => {
+      await result.current.performResetCurrentMonth();
+    });
+
+    expect(deleteTransactionsByMonthRequestMock).toHaveBeenCalledWith("2026-03");
+    expect(params.setEditDraft).toHaveBeenCalledWith(null);
+    expect(toastSuccessMock).toHaveBeenCalledWith("Data bulan aktif berhasil dihapus.");
   });
 });
