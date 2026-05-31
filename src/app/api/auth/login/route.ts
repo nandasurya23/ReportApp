@@ -1,5 +1,3 @@
-import { NextResponse } from "next/server";
-
 import {
   AUTH_COOKIE_NAME,
   authCookieOptions,
@@ -13,6 +11,11 @@ import {
 } from "@/lib/server/auth";
 import { MAX_FAILED_LOGIN_ATTEMPTS_PER_DAY } from "@/lib/constants/limits";
 import { prisma } from "@/lib/server/prisma";
+import {
+  isJsonRequest,
+  jsonNoStoreResponse,
+  rejectCrossOriginRequest,
+} from "@/lib/server/request-security";
 
 export const runtime = "nodejs";
 
@@ -33,7 +36,7 @@ function authResponse(
   message: string,
   fieldErrors?: Record<string, string>,
 ) {
-  return NextResponse.json(
+  return jsonNoStoreResponse(
     {
       error: message,
       message,
@@ -74,7 +77,21 @@ async function runLimiterOp<T>(
 
 export async function POST(request: Request) {
   try {
-    console.log("[auth/login] step=request-received");
+    const forbiddenResponse = rejectCrossOriginRequest(request);
+    if (forbiddenResponse) {
+      return forbiddenResponse;
+    }
+
+    if (!isJsonRequest(request)) {
+      return authResponse(
+        415,
+        "UNSUPPORTED_MEDIA_TYPE",
+        "Format request harus JSON.",
+        {
+          body: "Content-Type harus application/json.",
+        },
+      );
+    }
 
     let body: {
       username?: string;
@@ -97,15 +114,10 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("[auth/login] step=parsed-body", {
-      keys: Object.keys(body ?? {}),
-    });
-
     const username = body.username?.trim();
-    const password = body.password?.trim();
+    const password = typeof body.password === "string" ? body.password : "";
 
-    if (!username || !password) {
-      console.log("[auth/login] step=invalid-input");
+    if (!username || !password.trim()) {
       return authResponse(
         400,
         "VALIDATION_ERROR",
@@ -176,16 +188,12 @@ export async function POST(request: Request) {
           passwordHash: true,
         },
       });
-      console.log("[auth/login] step=user-lookup", { found: Boolean(user) });
     } catch (error) {
       console.error("[auth/login] step=user-lookup-failed", error);
       throw error;
     }
 
     const passwordMatched = Boolean(user && verifyPassword(password, user.passwordHash));
-    console.log("[auth/login] step=password-compare", {
-      matched: passwordMatched,
-    });
 
     if (!user || !passwordMatched) {
       if (loginAttemptDelegate && !limiterUnavailable) {
@@ -276,13 +284,12 @@ export async function POST(request: Request) {
           expiresAt,
         },
       });
-      console.log("[auth/login] step=session-created");
     } catch (error) {
       console.error("[auth/login] step=session-create-failed", error);
       throw error;
     }
 
-    const response = NextResponse.json(
+    const response = jsonNoStoreResponse(
       {
         user: {
           id: user.id,
@@ -294,13 +301,10 @@ export async function POST(request: Request) {
 
     try {
       response.cookies.set(AUTH_COOKIE_NAME, token, authCookieOptions);
-      console.log("[auth/login] step=cookie-set");
     } catch (error) {
       console.error("[auth/login] step=cookie-set-failed", error);
       throw error;
     }
-
-    console.log("[auth/login] step=success");
     return response;
   } catch (error) {
     console.error("[auth/login] step=unhandled-failed", error);

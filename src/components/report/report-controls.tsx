@@ -28,6 +28,9 @@ interface ReportControlsProps {
   isMonthLoading: boolean;
   canExport: boolean;
   transactionError: string;
+  isMonthDeleteArmed: boolean;
+  onToggleMonthDeleteArmed: () => void;
+  onResetCurrentMonth: () => void;
 }
 
 function ReportControlsComponent({
@@ -51,6 +54,9 @@ function ReportControlsComponent({
   isMonthLoading,
   canExport,
   transactionError,
+  isMonthDeleteArmed,
+  onToggleMonthDeleteArmed,
+  onResetCurrentMonth,
 }: ReportControlsProps) {
   return (
     <div className="no-print rounded-2xl border border-[#e7ddd1]/80 bg-[#fbf8f4]/90 p-4 shadow-sm sm:p-5">
@@ -179,6 +185,39 @@ function ReportControlsComponent({
           {transactionError}
         </p>
       )}
+      <div className="mt-4 rounded-2xl border border-rose-200 bg-[#fff8f6] p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-rose-700">
+              Danger Zone
+            </p>
+            <p className="mt-1 text-sm font-medium text-[#6d5d50]">
+              Aktifkan mode hapus dulu, baru tombol penghapusan bisa dipakai.
+            </p>
+          </div>
+          <div className="flex w-full flex-col gap-2 lg:w-auto lg:min-w-72">
+            <button
+              type="button"
+              onClick={onToggleMonthDeleteArmed}
+              className={`btn inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition lg:w-auto ${
+                isMonthDeleteArmed
+                  ? "border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200"
+                  : "border-rose-300 bg-white text-rose-700 hover:bg-[#fff0ee]"
+              }`}
+            >
+              {isMonthDeleteArmed ? "Matikan Mode Hapus" : "Aktifkan Mode Hapus"}
+            </button>
+            <button
+              type="button"
+              onClick={onResetCurrentMonth}
+              disabled={!isMonthDeleteArmed}
+              className="btn inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+            >
+              Hapus Bulan Ini
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -77,6 +77,45 @@ describe("transactions routes", () => {
     expect(body.totalPages).toBe(1);
   });
 
+  it("GET month scope skips the count query and returns the scoped dataset", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+    prismaMock.transaction.findMany.mockResolvedValue([
+      {
+        id: "tx-1",
+        date: new Date("2026-03-15T00:00:00.000Z"),
+        roomNumber: "A-01",
+        clientName: "Client A",
+        quantityKg: 2,
+        pricePerKg: 5000,
+        createdAt: new Date("2026-03-15T01:00:00.000Z"),
+        updatedAt: new Date("2026-03-15T02:00:00.000Z"),
+      },
+    ]);
+
+    const request = new Request(
+      "http://localhost/api/transactions?month=2026-03&scope=month",
+    ) as never;
+    const response = await getTransactions(request);
+    const body = (await response.json()) as {
+      transactions: Array<{ id: string; date: string }>;
+      total: number;
+      limit: number;
+      totalPages: number;
+    };
+
+    expect(response.status).toBe(200);
+    expect(prismaMock.transaction.count).not.toHaveBeenCalled();
+    expect(body.transactions[0]).toEqual(
+      expect.objectContaining({
+        id: "tx-1",
+        date: "2026-03-15",
+      }),
+    );
+    expect(body.total).toBe(1);
+    expect(body.limit).toBe(1);
+    expect(body.totalPages).toBe(1);
+  });
+
   it("creates new transaction when no duplicate exists", async () => {
     getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
     prismaMock.transaction.findMany.mockResolvedValueOnce([]);
@@ -204,6 +243,22 @@ describe("transactions routes", () => {
         pricePerKg: expect.any(String),
       }),
     );
+  });
+
+  it("POST create rejects non-json requests", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+    const request = new Request("http://localhost/api/transactions", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: "date=2026-03-16",
+    }) as never;
+
+    const response = await postTransaction(request);
+    const body = (await response.json()) as { code?: string; message?: string };
+
+    expect(response.status).toBe(415);
+    expect(body.code).toBe("UNSUPPORTED_MEDIA_TYPE");
+    expect(body.message).toBe("Format request harus JSON.");
   });
 
   it("updates transaction when PATCH payload is valid", async () => {
@@ -352,6 +407,31 @@ describe("transactions routes", () => {
     expect(response.status).toBe(404);
   });
 
+  it("PATCH update rejects non-json requests", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+    prismaMock.transaction.findFirst.mockResolvedValueOnce({
+      id: "tx-1",
+      date: new Date("2026-03-18T00:00:00.000Z"),
+      roomNumber: "8072 A",
+      clientName: "Client A",
+      quantityKg: 2,
+      pricePerKg: 5000,
+    });
+
+    const request = new Request("http://localhost/api/transactions/tx-1", {
+      method: "PATCH",
+      headers: { "Content-Type": "text/plain" },
+      body: "roomNumber=A-03",
+    }) as never;
+
+    const response = await patchTransaction(request, { params: Promise.resolve({ id: "tx-1" }) });
+    const body = (await response.json()) as { code?: string; message?: string };
+
+    expect(response.status).toBe(415);
+    expect(body.code).toBe("UNSUPPORTED_MEDIA_TYPE");
+    expect(body.message).toBe("Format request harus JSON.");
+  });
+
   it("deletes transaction by id", async () => {
     getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
     prismaMock.transaction.findFirst.mockResolvedValueOnce({ id: "tx-1" });
@@ -385,6 +465,55 @@ describe("transactions routes", () => {
     expect(prismaMock.transaction.deleteMany).toHaveBeenCalledWith({
       where: { userId: "user-1" },
     });
+  });
+
+  it("resets transactions for a specific month", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+    prismaMock.transaction.deleteMany.mockResolvedValue({ count: 3 });
+
+    const request = new Request("http://localhost/api/transactions?month=2026-03", {
+      method: "DELETE",
+    }) as never;
+
+    const response = await resetTransactions(request);
+    const body = (await response.json()) as {
+      success?: boolean;
+      scope?: string;
+      month?: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.scope).toBe("month");
+    expect(body.month).toBe("2026-03");
+    expect(prismaMock.transaction.deleteMany).toHaveBeenCalledWith({
+      where: {
+        userId: "user-1",
+        date: {
+          gte: new Date("2026-03-01T00:00:00.000Z"),
+          lt: new Date("2026-04-01T00:00:00.000Z"),
+        },
+      },
+    });
+  });
+
+  it("returns validation error for invalid month on reset", async () => {
+    getSessionUserMock.mockResolvedValue({ userId: "user-1", username: "pelunk" });
+
+    const request = new Request("http://localhost/api/transactions?month=bad-value", {
+      method: "DELETE",
+    }) as never;
+
+    const response = await resetTransactions(request);
+    const body = (await response.json()) as { code?: string; fieldErrors?: Record<string, string> };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("VALIDATION_ERROR");
+    expect(body.fieldErrors).toEqual(
+      expect.objectContaining({
+        month: expect.any(String),
+      }),
+    );
   });
 
   it("returns 500 for safe mocked failure case", async () => {

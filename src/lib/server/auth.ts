@@ -3,6 +3,7 @@ import { compareSync, hashSync } from "bcryptjs";
 import { NextResponse } from "next/server";
 
 import { AUTH_COOKIE_NAME } from "@/lib/constants/auth";
+import { jsonNoStoreResponse } from "@/lib/server/request-security";
 
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 export const AUTH_RATE_LIMIT_TIME_ZONE = "Asia/Makassar";
@@ -86,11 +87,12 @@ export function clearAuthCookie(response: NextResponse): NextResponse {
     ...authCookieOptions,
     maxAge: 0,
   });
+  response.headers.set("Cache-Control", "no-store");
   return response;
 }
 
 export function unauthorizedResponse(): NextResponse {
-  return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  return jsonNoStoreResponse({ error: "Unauthorized." }, { status: 401 });
 }
 
 export { AUTH_COOKIE_NAME };

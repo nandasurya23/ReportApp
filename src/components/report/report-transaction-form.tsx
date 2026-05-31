@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { FormEvent } from "react";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
@@ -26,7 +27,7 @@ interface ReportTransactionFormProps {
   isCreatingTransaction: boolean;
 }
 
-export function ReportTransactionForm({
+function ReportTransactionFormComponent({
   onSubmitAdd,
   formDate,
   setFormDate,
@@ -172,3 +173,5 @@ export function ReportTransactionForm({
     </motion.form>
   );
 }
+
+export const ReportTransactionForm = memo(ReportTransactionFormComponent);

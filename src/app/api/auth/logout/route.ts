@@ -1,10 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import { AUTH_COOKIE_NAME, clearAuthCookie } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/prisma";
+import {
+  jsonNoStoreResponse,
+  rejectCrossOriginRequest,
+} from "@/lib/server/request-security";
 
 export async function POST(request: NextRequest) {
   try {
+    const forbiddenResponse = rejectCrossOriginRequest(request);
+    if (forbiddenResponse) {
+      return forbiddenResponse;
+    }
+
     const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
     if (token) {
@@ -13,9 +22,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return clearAuthCookie(NextResponse.json({ success: true }, { status: 200 }));
+    return clearAuthCookie(jsonNoStoreResponse({ success: true }, { status: 200 }));
   } catch (error) {
     console.error("[auth/logout] POST failed", error);
-    return NextResponse.json({ error: "Internal server error.", message: "Internal server error.", code: "INTERNAL_SERVER_ERROR" }, { status: 500 });
+    return jsonNoStoreResponse(
+      {
+        error: "Internal server error.",
+        message: "Internal server error.",
+        code: "INTERNAL_SERVER_ERROR",
+      },
+      { status: 500 },
+    );
   }
 }

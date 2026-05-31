@@ -148,6 +148,21 @@ beforeEach(() => {
     );
   });
 
+  it("rejects non-json login request", async () => {
+    const request = new Request("http://localhost/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: "username=pelunk&password=@pelunk12",
+    });
+
+    const response = await POST(request);
+    const body = (await response.json()) as { code?: string; message?: string };
+
+    expect(response.status).toBe(415);
+    expect(body.code).toBe("UNSUPPORTED_MEDIA_TYPE");
+    expect(body.message).toBe("Format request harus JSON.");
+  });
+
   it("returns 429 when login attempts exceed the daily limit", async () => {
     prismaMock.loginAttempt.findUnique.mockResolvedValue({ failedCount: 5 });
 

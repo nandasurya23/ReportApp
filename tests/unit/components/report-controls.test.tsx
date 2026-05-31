@@ -13,6 +13,9 @@ const baseProps = {
   visibleCount: 3,
   totalCount: 10,
   onResetAll: jest.fn(),
+  isMonthDeleteArmed: false,
+  onToggleMonthDeleteArmed: jest.fn(),
+  onResetCurrentMonth: jest.fn(),
   onPrint: jest.fn(),
   onSavePdf: jest.fn(),
   onDownloadXLSX: jest.fn(),
@@ -43,7 +46,9 @@ describe("ReportControls", () => {
     expect(screen.getByText("10 total")).toBeInTheDocument();
     expect(screen.getByText("Menampilkan 100 dari 286 baris bulan aktif")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /maret 2026/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /reset semua/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^reset$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /aktifkan mode hapus/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /hapus bulan ini/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /muat baris berikutnya/i })).toBeInTheDocument();
   });
 
@@ -74,5 +79,11 @@ describe("ReportControls", () => {
     render(<ReportControls {...baseProps} isSavingPdf isExportingXlsx canExport={false} />);
     expect(screen.getByRole("button", { name: /menyiapkan pdf/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /menyiapkan xlsx/i })).toBeDisabled();
+  });
+
+  it("arms month delete mode when toggle is clicked", () => {
+    render(<ReportControls {...baseProps} />);
+    fireEvent.click(screen.getByRole("button", { name: /aktifkan mode hapus/i }));
+    expect(baseProps.onToggleMonthDeleteArmed).toHaveBeenCalledTimes(1);
   });
 });

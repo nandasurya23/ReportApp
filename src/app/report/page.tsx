@@ -21,7 +21,10 @@ import {
 } from "@/lib/services/report-api";
 import { formatMonthYearLabel, getCurrentMonthKey } from "@/lib/utils/date";
 import { getDailyTotal } from "@/lib/utils/laundry";
-import { showResetAllConfirmation } from "@/lib/utils/report-feedback";
+import {
+  showResetAllConfirmation,
+  showResetMonthConfirmation,
+} from "@/lib/utils/report-feedback";
 import {
   buildExportRows as buildExportRowsData,
   formatPriceInput,
@@ -75,6 +78,7 @@ export default function ReportPage() {
   const [isExportingXlsx, setIsExportingXlsx] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isLoadingMoreTransactions, setIsLoadingMoreTransactions] = useState(false);
+  const [isMonthDeleteArmed, setIsMonthDeleteArmed] = useState(false);
 
   const resetActiveMonthView = useCallback(() => {
     monthAbortRef.current?.abort();
@@ -143,6 +147,7 @@ export default function ReportPage() {
         return;
       }
       resetActiveMonthView();
+      setIsMonthDeleteArmed(false);
       setSelectedMonth(value);
     },
     [resetActiveMonthView, selectedMonth],
@@ -230,7 +235,13 @@ export default function ReportPage() {
     await loadActiveMonthData(selectedMonth);
   }, [loadActiveMonthData, selectedMonth]);
 
-  const { onSubmitAdd, onSaveInlineEdit, onDeleteRow, performResetAll } =
+  const {
+    onSubmitAdd,
+    onSaveInlineEdit,
+    onDeleteRow,
+    performResetAll,
+    performResetCurrentMonth,
+  } =
     useReportTransactionsActions({
       reloadActiveMonthData,
       isCreatingTransaction,
@@ -257,6 +268,7 @@ export default function ReportPage() {
       setFormPriceInput,
       editDraft,
       setEditDraft,
+      selectedMonth,
     });
 
   const onDownloadXLSX = useCallback(async () => {
@@ -320,6 +332,21 @@ export default function ReportPage() {
   const onResetAll = useCallback(() => {
     showResetAllConfirmation(performResetAll);
   }, [performResetAll]);
+
+  const onResetCurrentMonth = useCallback(() => {
+    showResetMonthConfirmation(selectedMonthLabel, () => {
+      setIsMonthDeleteArmed(false);
+      void performResetCurrentMonth();
+    });
+  }, [performResetCurrentMonth, selectedMonthLabel]);
+
+  const onToggleMonthDeleteArmed = useCallback(() => {
+    setIsMonthDeleteArmed((prev) => !prev);
+  }, []);
+
+  useEffect(() => {
+    setIsMonthDeleteArmed(false);
+  }, [selectedMonth]);
 
   const onLoadMoreTransactions = useCallback(() => {
     if (!hasMoreTransactions || isLoadingMoreTransactions || !hasMonthDataReady) {
@@ -416,6 +443,9 @@ export default function ReportPage() {
               setSearchQuery={setSearchQuery}
               visibleTransactions={visibleTransactions}
               onResetAll={onResetAll}
+              isMonthDeleteArmed={isMonthDeleteArmed}
+              onToggleMonthDeleteArmed={onToggleMonthDeleteArmed}
+              onResetCurrentMonth={onResetCurrentMonth}
               onPrint={onPrint}
               onSavePdf={onSavePdf}
               onDownloadXLSX={onDownloadXLSX}

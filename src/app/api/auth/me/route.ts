@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import {
   AUTH_COOKIE_NAME,
@@ -6,6 +6,7 @@ import {
   unauthorizedResponse,
 } from "@/lib/server/auth";
 import { prisma } from "@/lib/server/prisma";
+import { jsonNoStoreResponse } from "@/lib/server/request-security";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,14 +15,12 @@ export async function GET(request: NextRequest) {
       return unauthorizedResponse();
     }
 
-    const session = await prisma.session.findFirst({
+    const session = await prisma.session.findUnique({
       where: {
         token,
-        expiresAt: {
-          gt: new Date(),
-        },
       },
-      include: {
+      select: {
+        expiresAt: true,
         user: {
           select: {
             id: true,
@@ -32,11 +31,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (!session) {
+    if (!session || session.expiresAt <= new Date()) {
       return clearAuthCookie(unauthorizedResponse());
     }
 
-    return NextResponse.json(
+    return jsonNoStoreResponse(
       {
         user: session.user,
       },
@@ -44,6 +43,13 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error("[auth/me] GET failed", error);
-    return NextResponse.json({ error: "Internal server error.", message: "Internal server error.", code: "INTERNAL_SERVER_ERROR" }, { status: 500 });
+    return jsonNoStoreResponse(
+      {
+        error: "Internal server error.",
+        message: "Internal server error.",
+        code: "INTERNAL_SERVER_ERROR",
+      },
+      { status: 500 },
+    );
   }
 }

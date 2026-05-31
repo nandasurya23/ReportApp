@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+
 import {
   createSessionToken,
   hashPassword,
@@ -22,8 +24,9 @@ describe("auth server helpers", () => {
     expect(verifyPassword("wrong", hash)).toBe(false);
   });
 
-  it("supports compatibility plain password path", () => {
-    expect(verifyPassword("plain-pass", "plain-pass")).toBe(true);
+  it("supports compatibility SHA-256 legacy path", () => {
+    const legacyHash = createHash("sha256").update("plain-pass").digest("hex");
+    expect(verifyPassword("plain-pass", legacyHash)).toBe(true);
   });
 
   it("returns unauthorized response with 401", async () => {

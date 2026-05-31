@@ -1,6 +1,6 @@
 "use client";
 
-import { RefObject } from "react";
+import { memo, RefObject } from "react";
 
 import { formatIDR } from "@/lib/utils/currency";
 import { formatDateWITA, formatISODateToLongID } from "@/lib/utils/date";
@@ -18,7 +18,7 @@ interface ReportPdfPreviewProps {
   monthlyTotal: number;
 }
 
-export function ReportPdfPreview({
+function ReportPdfPreviewComponent({
   pdfExportRef,
   finalReportTitle,
   selectedMonthLabel,
@@ -208,3 +208,5 @@ export function ReportPdfPreview({
     </div>
   );
 }
+
+export const ReportPdfPreview = memo(ReportPdfPreviewComponent);

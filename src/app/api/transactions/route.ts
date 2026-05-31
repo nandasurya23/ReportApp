@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/session";
@@ -17,6 +18,11 @@ import {
   TransactionInputBody,
   toTransactionResponse,
 } from "@/app/api/transactions/shared";
+import {
+  isJsonRequest,
+  jsonNoStoreResponse,
+  rejectCrossOriginRequest,
+} from "@/lib/server/request-security";
 
 export const runtime = "nodejs";
 
@@ -28,7 +34,7 @@ function errorResponse(
     fieldErrors?: Record<string, string>;
   },
 ) {
-  return NextResponse.json(
+  return jsonNoStoreResponse(
     {
       error: payload.message,
       message: payload.message,
@@ -79,19 +85,40 @@ export async function GET(request: NextRequest) {
 
     const shouldReturnFullMonth = Boolean(monthBounds && scope === "month");
     const orderBy = [{ date: "desc" as const }, { createdAt: "desc" as const }];
-    const [total, transactions] = await Promise.all([
-      prisma.transaction.count({ where }),
-      shouldReturnFullMonth
-        ? prisma.transaction.findMany({ where, orderBy, take: MAX_MONTH_ROWS })
-        : prisma.transaction.findMany({ where, orderBy, skip, take: limit }),
-    ]);
+    const transactionSelect = {
+      id: true,
+      date: true,
+      roomNumber: true,
+      clientName: true,
+      quantityKg: true,
+      pricePerKg: true,
+      createdAt: true,
+      updatedAt: true,
+    } satisfies Prisma.TransactionSelect;
+
+    const findManyArgs: Prisma.TransactionFindManyArgs = {
+      where,
+      orderBy,
+      select: transactionSelect,
+    };
+    if (shouldReturnFullMonth) {
+      findManyArgs.take = MAX_MONTH_ROWS;
+    } else {
+      findManyArgs.skip = skip;
+      findManyArgs.take = limit;
+    }
+
+    const transactions = await prisma.transaction.findMany(findManyArgs);
+    const total = shouldReturnFullMonth
+      ? transactions.length
+      : await prisma.transaction.count({ where });
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const effectivePage = shouldReturnFullMonth ? 1 : page;
-    const effectiveLimit = shouldReturnFullMonth ? Math.max(total, transactions.length) : limit;
+    const effectiveLimit = shouldReturnFullMonth ? transactions.length : limit;
     const effectiveTotalPages = shouldReturnFullMonth ? 1 : totalPages;
 
-    return NextResponse.json(
+    return jsonNoStoreResponse(
       {
         transactions: transactions.map((transaction) => ({
           ...toTransactionResponse(transaction),
@@ -114,6 +141,21 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const forbiddenResponse = rejectCrossOriginRequest(request);
+    if (forbiddenResponse) {
+      return forbiddenResponse;
+    }
+
+    if (!isJsonRequest(request)) {
+      return errorResponse(415, {
+        message: "Format request harus JSON.",
+        code: "UNSUPPORTED_MEDIA_TYPE",
+        fieldErrors: {
+          body: "Content-Type harus application/json.",
+        },
+      });
+    }
+
     const auth = await getSessionUser(request);
     if (auth.unauthorizedResponse) {
       return auth.unauthorizedResponse;
@@ -180,6 +222,11 @@ export async function POST(request: NextRequest) {
           lt: end,
         },
       },
+      select: {
+        id: true,
+        date: true,
+        roomNumber: true,
+      },
     });
 
     const normalizedIncomingRoom = normalizeRoomCodeForComparison(roomNumber);
@@ -207,7 +254,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(
+    return jsonNoStoreResponse(
       {
         transaction: {
           ...toTransactionResponse(transaction),
@@ -226,16 +273,55 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const forbiddenResponse = rejectCrossOriginRequest(request);
+    if (forbiddenResponse) {
+      return forbiddenResponse;
+    }
+
     const auth = await getSessionUser(request);
     if (auth.unauthorizedResponse) {
       return auth.unauthorizedResponse;
+    }
+
+    const { searchParams } = new URL(request.url);
+    const month = searchParams.get("month")?.trim() || "";
+    const monthBounds = month ? getMonthBounds(month) : null;
+    if (month && !monthBounds) {
+      return errorResponse(400, {
+        message: "Data belum lengkap atau belum valid.",
+        code: "VALIDATION_ERROR",
+        fieldErrors: {
+          month: "Bulan harus diisi dengan format YYYY-MM.",
+        },
+      });
+    }
+
+    if (monthBounds) {
+      await prisma.transaction.deleteMany({
+        where: {
+          userId: auth.userId,
+          date: {
+            gte: monthBounds.start,
+            lt: monthBounds.end,
+          },
+        },
+      });
+
+      return jsonNoStoreResponse(
+        {
+          success: true,
+          scope: "month",
+          month,
+        },
+        { status: 200 },
+      );
     }
 
     await prisma.transaction.deleteMany({
       where: { userId: auth.userId },
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return jsonNoStoreResponse({ success: true }, { status: 200 });
   } catch (error) {
     console.error("[transactions/route] DELETE failed", error);
     return errorResponse(500, {

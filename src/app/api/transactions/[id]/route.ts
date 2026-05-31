@@ -1,8 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import { MAX_PRICE_PER_KG } from "@/lib/constants/limits";
 import { prisma } from "@/lib/server/prisma";
 import { getSessionUser } from "@/lib/server/session";
+import {
+  isJsonRequest,
+  jsonNoStoreResponse,
+  rejectCrossOriginRequest,
+} from "@/lib/server/request-security";
 import {
   compactText,
   getBusinessDateKey,
@@ -27,7 +32,7 @@ function errorResponse(
     fieldErrors?: Record<string, string>;
   },
 ) {
-  return NextResponse.json(
+  return jsonNoStoreResponse(
     {
       error: payload.message,
       message: payload.message,
@@ -43,6 +48,21 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const forbiddenResponse = rejectCrossOriginRequest(request);
+    if (forbiddenResponse) {
+      return forbiddenResponse;
+    }
+
+    if (!isJsonRequest(request)) {
+      return errorResponse(415, {
+        message: "Format request harus JSON.",
+        code: "UNSUPPORTED_MEDIA_TYPE",
+        fieldErrors: {
+          body: "Content-Type harus application/json.",
+        },
+      });
+    }
+
     const auth = await getSessionUser(request);
     if (auth.unauthorizedResponse) {
       return auth.unauthorizedResponse;
@@ -63,6 +83,11 @@ export async function PATCH(
       where: {
         id,
         userId: auth.userId,
+      },
+      select: {
+        id: true,
+        date: true,
+        roomNumber: true,
       },
     });
 
@@ -190,6 +215,11 @@ export async function PATCH(
           lt: end,
         },
       },
+      select: {
+        id: true,
+        date: true,
+        roomNumber: true,
+      },
     });
 
     const normalizedFinalRoom = normalizeRoomCodeForComparison(finalRoomNumber);
@@ -211,7 +241,7 @@ export async function PATCH(
       data,
     });
 
-    return NextResponse.json(
+    return jsonNoStoreResponse(
       {
         transaction: {
           ...toTransactionResponse(transaction),
@@ -233,6 +263,11 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const forbiddenResponse = rejectCrossOriginRequest(request);
+    if (forbiddenResponse) {
+      return forbiddenResponse;
+    }
+
     const auth = await getSessionUser(request);
     if (auth.unauthorizedResponse) {
       return auth.unauthorizedResponse;
@@ -268,7 +303,7 @@ export async function DELETE(
       where: { id: existing.id },
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return jsonNoStoreResponse({ success: true }, { status: 200 });
   } catch (error) {
     console.error("[transactions/[id]] DELETE failed", error);
     return errorResponse(500, {

@@ -31,6 +31,9 @@ interface ReportTableSectionProps {
   setSearchQuery: (value: string) => void;
   visibleTransactions: LaundryTransaction[];
   onResetAll: () => void;
+  isMonthDeleteArmed: boolean;
+  onToggleMonthDeleteArmed: () => void;
+  onResetCurrentMonth: () => void;
   onPrint: () => void;
   onSavePdf: () => void | Promise<void>;
   onDownloadXLSX: () => void | Promise<void>;
@@ -70,6 +73,9 @@ function ReportTableSectionComponent({
   setSearchQuery,
   visibleTransactions,
   onResetAll,
+  isMonthDeleteArmed,
+  onToggleMonthDeleteArmed,
+  onResetCurrentMonth,
   onPrint,
   onSavePdf,
   onDownloadXLSX,
@@ -103,15 +109,17 @@ function ReportTableSectionComponent({
       transition={{ duration: 0.35, delay: 0.08 }}
       className="surface-card print-area min-w-0 rounded-2xl border border-[#e7ddd1]/80 bg-[#fbf8f4]/90 p-4 shadow-sm sm:p-5"
     >
-      <ReportControls
-        selectedMonth={selectedMonth}
-        onSelectedMonthChange={onSelectedMonthChange}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        visibleCount={visibleTransactions.length}
-        totalCount={totalAvailable}
-        onResetAll={onResetAll}
-        onPrint={onPrint}
+        <ReportControls
+          selectedMonth={selectedMonth}
+          onSelectedMonthChange={onSelectedMonthChange}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          visibleCount={visibleTransactions.length}
+          totalCount={totalAvailable}
+          onResetAll={onResetAll}
+          isMonthDeleteArmed={isMonthDeleteArmed}
+          onToggleMonthDeleteArmed={onToggleMonthDeleteArmed}
+          onPrint={onPrint}
         onSavePdf={onSavePdf}
         onDownloadXLSX={onDownloadXLSX}
         isSavingPdf={isSavingPdf}
@@ -120,11 +128,12 @@ function ReportTableSectionComponent({
         totalAvailable={totalAvailable}
         hasMoreTransactions={hasMoreTransactions}
         onLoadMoreTransactions={onLoadMoreTransactions}
-        isLoadingMoreTransactions={isLoadingMoreTransactions}
-        isMonthLoading={isMonthLoading}
-        canExport={isMonthReady}
-        transactionError={transactionError}
-      />
+          isLoadingMoreTransactions={isLoadingMoreTransactions}
+          isMonthLoading={isMonthLoading}
+          canExport={isMonthReady}
+          transactionError={transactionError}
+          onResetCurrentMonth={onResetCurrentMonth}
+        />
 
       <div className="mt-5 rounded-2xl border border-[#e7ddd1]/80 bg-[#f8f1e8]/60 p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex flex-col gap-2 border-b border-[#e7ddd1] pb-3 sm:flex-row sm:items-center sm:justify-between">
